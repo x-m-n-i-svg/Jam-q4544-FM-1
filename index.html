@@ -1,4 +1,4 @@
-<!doctype html><html lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!doctype html><html lang="ar"><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow, noarchive"><meta name="googlebot" content="noindex, nofollow"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>فاحص التشويش</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -59,10 +59,25 @@ button{font-family:var(--font-body);cursor:pointer}
 .d-jam{background:var(--jam)} .d-maybe{background:var(--maybe)} .d-ok{background:var(--ok)} .d-none{background:var(--muted)}
 .foot{font-size:.78rem;color:var(--muted);margin:0}
 h2{font-size:.95rem;margin:0 0 10px}
+.gate{max-width:360px;margin:12vh auto 0}
+.gate form{grid-template-columns:1fr}
+.gerr{grid-column:1/-1;margin:0;color:var(--jam);font-size:.9rem}
 @media (max-width:380px){form{grid-template-columns:1fr}}
 </style>
 
-<div class="wrap" dir="rtl">
+<div class="gate" id="gate" dir="rtl">
+  <section class="panel">
+    <form id="gf" novalidate>
+      <h1>فاحص التشويش</h1>
+      <label for="code">رمز الدخول
+        <input id="code" type="password" autocomplete="current-password">
+      </label>
+      <p class="gerr" id="gerr" hidden>الرمز غير صحيح، حاول مرة ثانية.</p>
+      <button class="go" type="submit">دخول</button>
+    </form>
+  </section>
+</div>
+<div class="wrap" dir="rtl" id="app" hidden>
   <header>
     <h1>فاحص التشويش</h1>
     <p class="sub">من 300 ميجاهرتز إلى 6 جيجاهرتز، حسب ترددات المملكة العربية السعودية</p>
@@ -269,5 +284,44 @@ function run(save){
 }
 document.getElementById("f").addEventListener("submit", e=>{ e.preventDefault(); run(true); });
 drawHist(); run(false);
+</script>
+<script>
+(function(){
+const HASH="620d4066df8fec123d53e82943ee2eeccc65f44e02768d7bc79bcfe6088724c7", SALT="jamcheck:";
+function sha256(s){
+  s=unescape(encodeURIComponent(s));
+  const rotr=(x,n)=>(x>>>n)|(x<<(32-n));
+  const K=[],H=[];let p=0;
+  for(let c=2;p<64;c++){let pr=true;for(let d=2;d*d<=c;d++)if(c%d===0){pr=false;break}
+    if(pr){if(p<8)H[p]=(Math.pow(c,1/2)*4294967296)|0;K[p++]=(Math.pow(c,1/3)*4294967296)|0;}}
+  const bits=s.length*8;s+="\x80";while(s.length%64!==56)s+="\x00";
+  const W=[];for(let i=0;i<s.length;i++)W[i>>2]=(W[i>>2]|0)|(s.charCodeAt(i)<<((3-(i%4))*8));
+  W.push((bits/4294967296)|0);W.push(bits|0);
+  for(let j=0;j<W.length;j+=16){
+    const w=new Array(64);for(let i=0;i<16;i++)w[i]=W[j+i]|0;
+    for(let i=16;i<64;i++){const x=w[i-15],y=w[i-2];
+      w[i]=(w[i-16]+(rotr(x,7)^rotr(x,18)^(x>>>3))+w[i-7]+(rotr(y,17)^rotr(y,19)^(y>>>10)))|0;}
+    let [a,b,c,d,e,f,g,h]=H;
+    for(let i=0;i<64;i++){
+      const t1=(h+(rotr(e,6)^rotr(e,11)^rotr(e,25))+((e&f)^(~e&g))+K[i]+w[i])|0;
+      const t2=((rotr(a,2)^rotr(a,13)^rotr(a,22))+((a&b)^(a&c)^(b&c)))|0;
+      h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;}
+    H[0]=(H[0]+a)|0;H[1]=(H[1]+b)|0;H[2]=(H[2]+c)|0;H[3]=(H[3]+d)|0;
+    H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;}
+  return H.map(x=>(x>>>0).toString(16).padStart(8,"0")).join("");
+}
+window.__sha256=sha256;
+const gate=document.getElementById("gate"),app=document.getElementById("app");
+function open(){gate.hidden=true;app.hidden=false;}
+let saved=null;try{saved=localStorage.getItem("jamGate");}catch(e){}
+if(saved===HASH){open();return;}
+document.getElementById("gf").addEventListener("submit",e=>{
+  e.preventDefault();
+  const v=document.getElementById("code").value.trim();
+  if(sha256(SALT+v)===HASH){try{localStorage.setItem("jamGate",HASH);}catch(e){}open();}
+  else{document.getElementById("gerr").hidden=false;document.getElementById("code").select();}
+});
+document.getElementById("code").focus();
+})();
 </script>
 </html>
