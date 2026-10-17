@@ -1,0 +1,273 @@
+<!doctype html><html lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>فاحص التشويش</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow instrument column — input panel, verdict readout, power scale, recent readings */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#18212b; --muted:#5b6774; --line:#d5dbe2;
+  --accent:#c47a12; --accent-ink:#ffffff;
+  --jam:#c2362c; --jam-bg:#fbe9e7; --maybe:#b06d00; --maybe-bg:#fdf1dc; --ok:#25804a; --ok-bg:#e3f3e8;
+  --track:#e3e8ee; --normal:#b9d7c4;
+  --font-body:"IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --font-num:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12171d; --panel:#1b222a; --ink:#e6ebf0; --muted:#97a3af; --line:#2c3640;
+  --accent:#e8a33d; --accent-ink:#1a1206;
+  --jam:#f07a6e; --jam-bg:#3a1d1a; --maybe:#f0b54f; --maybe-bg:#382a12; --ok:#6fcf93; --ok-bg:#16301f;
+  --track:#26303a; --normal:#2f5a40; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#12171d; --panel:#1b222a; --ink:#e6ebf0; --muted:#97a3af; --line:#2c3640;
+  --accent:#e8a33d; --accent-ink:#1a1206;
+  --jam:#f07a6e; --jam-bg:#3a1d1a; --maybe:#f0b54f; --maybe-bg:#382a12; --ok:#6fcf93; --ok-bg:#16301f;
+  --track:#26303a; --normal:#2f5a40; color-scheme:dark;}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.65;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 32px}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:1.45rem;margin:0;line-height:1.3;text-wrap:balance}
+.sub{color:var(--muted);margin:2px 0 0;font-size:.92rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:flex;flex-direction:column;gap:6px;font-size:.88rem;color:var(--muted);font-weight:500;min-width:0}
+input{font-family:var(--font-num);font-size:1.25rem;padding:10px 12px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--ink);direction:ltr;text-align:left;width:100%;box-sizing:border-box;min-width:0}
+input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.hint{grid-column:1/-1;font-size:.8rem;color:var(--muted);margin:-4px 0 0}
+button{font-family:var(--font-body);cursor:pointer}
+.go{grid-column:1/-1;background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:12px;font-size:1.05rem;font-weight:700}
+.go:focus-visible,.chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.result{display:flex;flex-direction:column;gap:14px}
+.verdict{border-radius:10px;padding:12px 14px;font-size:1.25rem;font-weight:700;line-height:1.4}
+.v-jam{background:var(--jam-bg);color:var(--jam)} .v-maybe{background:var(--maybe-bg);color:var(--maybe)} .v-ok{background:var(--ok-bg);color:var(--ok)}
+.v-none{background:var(--track);color:var(--muted)}
+.sec h3{margin:0 0 2px;font-size:.95rem}
+.sec p{margin:0}
+.band{font-family:var(--font-num);font-size:.82rem;color:var(--muted);direction:ltr;display:inline-block}
+.scale{display:flex;flex-direction:column;gap:4px}
+.bar{position:relative;height:14px;background:var(--track);border-radius:7px;direction:ltr;overflow:hidden}
+.norm{position:absolute;top:0;bottom:0;background:var(--normal)}
+.mark{position:absolute;top:-3px;width:4px;height:20px;background:var(--ink);border-radius:2px;transform:translateX(-2px)}
+.ticks{display:flex;justify-content:space-between;direction:ltr;font-family:var(--font-num);font-size:.72rem;color:var(--muted)}
+.legend{font-size:.78rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;background:var(--normal);border-radius:2px;margin-inline-end:4px;vertical-align:-1px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:4px 12px;font-family:var(--font-num);font-size:.82rem;direction:ltr}
+.chip b{font-weight:500}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.d-jam{background:var(--jam)} .d-maybe{background:var(--maybe)} .d-ok{background:var(--ok)} .d-none{background:var(--muted)}
+.foot{font-size:.78rem;color:var(--muted);margin:0}
+h2{font-size:.95rem;margin:0 0 10px}
+@media (max-width:380px){form{grid-template-columns:1fr}}
+</style>
+
+<div class="wrap" dir="rtl">
+  <header>
+    <h1>فاحص التشويش</h1>
+    <p class="sub">من 300 ميجاهرتز إلى 6 جيجاهرتز، حسب ترددات المملكة العربية السعودية</p>
+  </header>
+
+  <section class="panel">
+    <form id="f" novalidate>
+      <label for="freq">التردد
+        <input id="freq" inputmode="decimal" autocomplete="off" placeholder="1225" value="1225">
+      </label>
+      <label for="pwr">القوة (dBm)
+        <input id="pwr" inputmode="decimal" autocomplete="off" placeholder="-80" value="-80">
+      </label>
+      <p class="hint">التردد بالميجا (1225) أو بالجيجا (1.25)، ويقبل مدى مثل 1800-1880. القوة تكتب بالسالب أو بدونه.</p>
+      <button class="go" type="submit">افحص</button>
+    </form>
+  </section>
+
+  <section class="panel result" id="out" aria-live="polite"></section>
+
+  <section class="panel">
+    <h2>القراءات الأخيرة</h2>
+    <div class="chips" id="hist"></div>
+  </section>
+
+  <p class="foot">النتيجة تقديرية من قراءة واحدة. للتأكد من التشويش: قارن بتردد هادئ قريب، وراقب شكل الإشارة (ضوضاء عريضة مستمرة، قمة ضيقة، أو نبضات)، وتأكد إذا فيه انقطاع فعلي في GPS أو الشبكة.</p>
+</div>
+
+<script>
+const K = {
+  gnss:{usual:"إشارة الأقمار الطبيعية تصل بحوالي ‎-125 إلى ‎-130 dBm، يعني ما تظهر على جهاز القياس. ولا يوجد في هذا النطاق أي إرسال أرضي مرخص.", range:[-130,-125]},
+  "cell-dl":{usual:"هذا الجزء اللي ترسل فيه الأبراج. القوة الطبيعية تقريباً من ‎-50 إلى ‎-110 dBm.", range:[-110,-50], src:"الأرجح أنها من برج جوال", cond:"يعتبر تشويش فقط إذا ظهرت ضوضاء عريضة تغطي النطاق كامل، وصار معها انقطاع في الشبكة."},
+  "cell-ul":{usual:"هذا الجزء اللي ترسل فيه الجوالات نفسها، والإشارة تظهر وتختفي حسب الاستخدام.", range:[-110,-50], src:"الأرجح أنها من جوال يتصل أو يستخدم الإنترنت", cond:"يعتبر تشويش فقط إذا ظهرت ضوضاء عريضة قوية ومستمرة تغطي النطاق كامل."},
+  "cell-mix":{usual:"نطاق جوال حديث، فيه جزء ترسل فيه الأبراج وجزء ترسل فيه الجوالات. القوة الطبيعية تقريباً من ‎-50 إلى ‎-110 dBm.", range:[-110,-50], src:"الأرجح أنها من برج أو جوال", cond:"يعتبر تشويش فقط إذا ظهرت ضوضاء عريضة تغطي النطاق كامل، وصار معها انقطاع في الشبكة."},
+  tdd:{usual:"البرج والجوال يرسلون على نفس التردد بالتناوب. القوة الطبيعية تقريباً من ‎-50 إلى ‎-110 dBm.", range:[-110,-50], src:"الأرجح أنها من برج جوال أو جوال قريب", cond:"يعتبر تشويش فقط إذا صار انقطاع أو ضعف في الشبكة رغم أن القراءة قوية."},
+  wifi:{usual:"قوة إشارة الواي فاي والأجهزة اللاسلكية الطبيعية تقريباً من ‎-30 إلى ‎-90 dBm.", range:[-90,-30], src:"الأرجح أنها من راوتر أو جهاز لاسلكي", cond:"يعتبر تشويش فقط إذا ظهرت ضوضاء قوية ومستمرة تغطي النطاق كامل، وصار معها انقطاع في الواي فاي أو تحكم الدرون."},
+  radio:{usual:"إشارات المحطات تكون مستمرة، وإشارات الأجهزة المحمولة متقطعة. القوة الطبيعية تقريباً من ‎-50 إلى ‎-100 dBm.", range:[-100,-50], src:"الأرجح أنها من محطة أو أجهزة لاسلكي قريبة", cond:"يعتبر تشويش فقط إذا ظهرت ضوضاء عريضة غير معتادة تغطي النطاق كامل."},
+  broadcast:{usual:"إشارات البث تكون قوية نسبياً ومستمرة. القوة الطبيعية تقريباً من ‎-40 إلى ‎-90 dBm.", range:[-90,-40], src:"الأرجح أنها من برج بث", cond:"يعتبر مشبوه فقط إذا ظهرت ضوضاء عريضة غير معتادة، أو إشارة مستمرة بدون محتوى بث."},
+  radar:{usual:"إشارة الرادار تظهر كنبضات متقطعة، غالباً تتكرر كل بضع ثوانٍ مع دوران الهوائي.", range:[-100,-40], src:"إذا كانت نبضات متقطعة فهي رادار وطبيعية", cond:"إذا كانت قمة ثابتة ومستمرة عرضها حوالي 8 ميجاهرتز، فالأرجح مرسل فيديو لدرون أو كاميرا لاسلكية، وهذا استخدام غير مرخص."},
+  aero:{usual:"إشارات ملاحة الطيران تظهر كنبضات متقطعة، وتكثر قرب المطارات وأثناء مرور الطائرات.", range:[-100,-40], src:"الأرجح أنها من طائرة أو محطة ملاحة جوية", cond:"يعتبر مشبوه فقط إذا ظهرت ضوضاء عريضة مستمرة بدل النبضات."},
+  "sat-dl":{usual:"الإشارة تجي من القمر الصناعي، وتصل ضعيفة جداً، حوالي ‎-120 إلى ‎-130 dBm.", range:[-130,-120]},
+  "sat-ul":{usual:"هذا الجزء اللي ترسل فيه هواتف الأقمار الصناعية، والإشارة تظهر وقت الاتصال فقط.", range:[-110,-50], src:"الأرجح أنها من هاتف أقمار صناعية قريب (مثل الثريا)", cond:"يعتبر مشبوه فقط إذا ظهرت ضوضاء عريضة مستمرة تغطي النطاق كامل."},
+  passive:{usual:"نطاق محمي دولياً للفلك الراديوي، والمفروض ما فيه أي إرسال نهائياً.", range:[-130,-120]},
+  gap:{usual:"هذا فاصل حماية بين نطاقين، والمفروض يكون هادي بدون إشارات.", range:[-130,-105], src:"إشارة ضعيفة هنا غالباً تسرّب من النطاق المجاور", cond:"إذا ظهرت إشارة قوية ومستمرة في الفاصل، فهي غير طبيعية وتستاهل متابعة."},
+  other:{usual:"نطاق يستخدم لخدمات متخصصة، والإشارات فيه متفاوتة.", range:[-110,-50], src:"الأرجح أنها من محطة أو رابط لاسلكي قريب", cond:"يعتبر مشبوه فقط إذا ظهرت ضوضاء عريضة غير معتادة تغطي النطاق كامل."}
+};
+const B = [
+ [300,380,"other","نطاق لاسلكي حكومي وعسكري (VHF/UHF)"],
+ [380,400,"radio","نطاق TETRA: اللاسلكي الرقمي للجهات الأمنية والطوارئ"],
+ [400,406.2,"other","الأرصاد الجوية، و406 ميجاهرتز لمنارات استغاثة الطوارئ"],
+ [406.2,470,"radio","لاسلكي UHF: أجهزة الووكي توكي، وأجهزة التحكم عن بعد على 433"],
+ [470,614,"broadcast","البث التلفزيوني الرقمي UHF"],
+ [614,703,"cell-mix","نطاق 600 لشبكات 5G (STC وزين)"],
+ [703,748,"cell-ul","نطاق 700، إرسال الجوالات (STC وموبايلي)"],
+ [748,758,"gap","فاصل حماية في نطاق 700"],
+ [758,791,"cell-dl","نطاق 700، إرسال الأبراج (STC وموبايلي)"],
+ [791,821,"cell-dl","نطاق 800، إرسال الأبراج (موبايلي وزين)"],
+ [821,832,"gap","فاصل حماية في نطاق 800"],
+ [832,862,"cell-ul","نطاق 800، إرسال الجوالات (موبايلي وزين)"],
+ [862,880,"other","أجهزة قصيرة المدى: حساسات وإنترنت الأشياء (LoRa) وأجهزة إنذار"],
+ [880,915,"cell-ul","نطاق 900، إرسال الجوالات (STC وموبايلي وزين)"],
+ [915,925,"gap","فاصل حماية في نطاق 900"],
+ [925,960,"cell-dl","نطاق 900، إرسال الأبراج (STC وموبايلي وزين)"],
+ [960,1164,"aero","ملاحة الطيران: DME/TACAN والرادار الثانوي، ومنها 1030 و1090 (ADS-B)"],
+ [1164,1215,"gnss","GNSS المنخفض: GPS L5 وGalileo E5 وBeiDou B2 وGLONASS L3","هذا النطاق يشترك مع نظام DME لملاحة الطائرات، وإشارته نبضات متقطعة. إذا كانت الإشارة نبضات، خصوصاً قرب مطار، فهي طبيعية."],
+ [1215,1254,"gnss","GNSS: GPS L2 وGLONASS L2","هذا النطاق يشترك مع رادارات الطيران (نبضات متقطعة)، ومع مرسلات فيديو الدرونات 1.2 جيجا (قمة ثابتة عرضها حوالي 8 ميجا)."],
+ [1254,1258,"radar","رادارات الطيران والرادارات العسكرية"],
+ [1258,1300,"gnss","GNSS: Galileo E6 وBeiDou B3","هذا النطاق يشترك مع رادارات الطيران (نبضات متقطعة)، ومع مرسلات فيديو الدرونات 1.2 جيجا (قمة ثابتة عرضها حوالي 8 ميجا)."],
+ [1300,1400,"radar","رادارات الطيران والرادارات العسكرية"],
+ [1400,1427,"passive","الفلك الراديوي (نطاق محمي)"],
+ [1427,1518,"other","نطاق L للاتصالات والروابط الثابتة"],
+ [1518,1559,"sat-dl","هواتف الأقمار الصناعية: إرسال القمر (الثريا وإنمارسات)"],
+ [1559,1610,"gnss","GNSS العلوي: GPS L1 وGalileo E1 وBeiDou B1 وGLONASS L1"],
+ [1610,1626.5,"sat-dl","هواتف الأقمار الصناعية: إيريديوم وجلوبال ستار"],
+ [1626.5,1660.5,"sat-ul","هواتف الأقمار الصناعية: إرسال الهاتف (الثريا وإنمارسات)"],
+ [1660.5,1710,"other","أقمار الأرصاد الجوية"],
+ [1710,1785,"cell-ul","نطاق 1800، إرسال الجوالات (STC وموبايلي وزين)"],
+ [1785,1805,"gap","فاصل حماية في نطاق 1800"],
+ [1805,1880,"cell-dl","نطاق 1800، إرسال الأبراج (STC وموبايلي وزين)"],
+ [1880,1920,"other","الهواتف اللاسلكية المنزلية (DECT)"],
+ [1920,1980,"cell-ul","نطاق 2100، إرسال الجوالات (STC وموبايلي وزين)"],
+ [1980,2110,"other","الأقمار الصناعية والروابط الثابتة"],
+ [2110,2170,"cell-dl","نطاق 2100، إرسال الأبراج (STC وموبايلي وزين)"],
+ [2170,2300,"other","الأقمار الصناعية والروابط الثابتة"],
+ [2300,2400,"tdd","نطاق 2300 لشبكات 4G و5G (STC)"],
+ [2400,2483.5,"wifi","واي فاي 2.4 وبلوتوث وتحكم الدرونات"],
+ [2483.5,2500,"sat-dl","هواتف الأقمار الصناعية: جلوبال ستار"],
+ [2500,2690,"tdd","نطاق 2500/2600 لشبكات 4G و5G (زين وموبايلي)"],
+ [2690,3400,"radar","رادارات المطارات والأرصاد الجوية (S-band)"],
+ [3400,3800,"tdd","نطاق 3500 لشبكات 5G (STC وموبايلي وزين)"],
+ [3800,4200,"tdd","نطاق 3800 لشبكات 5G (STC وموبايلي)"],
+ [4200,4400,"aero","مقاييس الارتفاع في الطائرات (نطاق محمي للطيران)"],
+ [4400,5150,"other","روابط ثابتة وعسكرية"],
+ [5150,5350,"wifi","واي فاي 5 جيجا، الجزء الأول"],
+ [5350,5470,"radar","رادارات"],
+ [5470,5725,"wifi","واي فاي 5 جيجا، ورادارات الأرصاد على 5600–5650"],
+ [5725,5875,"wifi","واي فاي 5.8 وفيديو الدرونات FPV"],
+ [5875,5925,"other","أنظمة النقل الذكي"],
+ [5925,6000.01,"wifi","واي فاي 6E"]
+];
+
+const toEn = s => String(s).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[٫,]/g,".").replace(/[−–—]/g,"-");
+function parseFreq(raw){
+  let s = toEn(raw).toLowerCase().trim();
+  const ghz = /g/.test(s);
+  const nums = (s.match(/\d+(\.\d+)?/g)||[]).map(Number);
+  if(!nums.length) return null;
+  const fix = n => (ghz || n < 10) ? n*1000 : n;
+  const lo = fix(nums[0]), hi = nums[1]!=null ? fix(nums[1]) : lo;
+  return {lo:Math.min(lo,hi), hi:Math.max(lo,hi), mid:(lo+hi)/2, range:nums[1]!=null};
+}
+function parsePwr(raw){
+  const m = toEn(raw).match(/\d+(\.\d+)?/);
+  if(!m) return null;
+  return -Math.abs(Number(m[0]));
+}
+const findBand = f => B.find(b => f>=b[0] && f<b[1]);
+const fmt = n => Number.isInteger(n) ? String(n) : n.toFixed(n<100?3:2).replace(/0+$/,"").replace(/\.$/,"");
+const dbm = p => "‎" + p + " dBm";
+
+function strength(p){
+  if(p>=-60) return "إشارة قوية";
+  if(p>=-85) return "إشارة متوسطة إلى قوية";
+  if(p>=-100) return "إشارة ضعيفة إلى متوسطة";
+  return "إشارة ضعيفة جداً وقريبة من مستوى الضوضاء الداخلية للجهاز";
+}
+
+function judge(f, p){
+  const band = findBand(f.mid);
+  if(!band) return {cls:"none", head:"التردد خارج نطاق البرنامج.", usual:"البرنامج يغطي من 300 ميجاهرتز إلى 6000 ميجاهرتز.", why:"اكتب تردد داخل هذا المدى.", band:null};
+  const [lo,hi,kind,name,extra] = band, k = K[kind];
+  let cls, head, why;
+  const above = Math.round(p - (-128));
+  if(kind==="gnss"){
+    if(p>=-90){cls="jam";head="ايه، غالباً تشويش.";
+      why=`قراءة ${dbm(p)} أقوى من الطبيعي بحوالي ${above} ديسيبل، وهذا يدل على مصدر أرضي قريب يرسل داخل نطاق الملاحة ويغطي على إشارة الأقمار.`;}
+    else if(p>=-105){cls="maybe";head="ايه، محتمل يكون تشويش.";
+      why=`قراءة ${dbm(p)} أقوى من الطبيعي بحوالي ${above} ديسيبل، وهذا يدل على مصدر أرضي. إذا كانت ضوضاء عريضة ومستمرة، فالأرجح جهاز تشويش، أو نفس الجهاز من مسافة أبعد.`;}
+    else {cls="ok";head="لا، غالباً مو تشويش.";
+      why=`قراءة ${dbm(p)} قريبة من مستوى الضوضاء الداخلية لأغلب أجهزة القياس، فالأرجح أن الجهاز يقرأ ضوضاءه نفسها. يصير تشويش إذا ارتفعت القراءة بوضوح عن الترددات المجاورة.`;}
+    if(extra && cls!=="ok") why += " " + extra;
+  } else if(kind==="passive"){
+    if(p>=-105){cls="maybe";head="ايه، محتمل يكون إرسال غير طبيعي.";why=`قراءة ${dbm(p)} في نطاق ممنوع فيه الإرسال، فأي إشارة واضحة هنا مصدرها غير مرخص أو تسرّب من جهاز قريب.`;}
+    else {cls="ok";head="لا، مو تشويش.";why=`قراءة ${dbm(p)} ضعيفة جداً، والأرجح أنها ضوضاء الجهاز نفسه.`;}
+  } else if(kind==="sat-dl"){
+    if(p>=-95){cls="maybe";head="ايه، محتمل يكون تشويش.";why=`قراءة ${dbm(p)} أقوى بكثير من إشارة القمر الطبيعية، وهذا يدل على مصدر أرضي قريب. إذا صار معها انقطاع في هواتف الأقمار، فهو تشويش.`;}
+    else {cls="ok";head="لا، غالباً مو تشويش.";why=`قراءة ${dbm(p)} ضعيفة، وقريبة من مستوى الضوضاء أو إشارة القمر نفسه.`;}
+  } else {
+    if(p>-40){cls="maybe";head="محتمل. القراءة قوية جداً.";why=`قراءة ${dbm(p)} أقوى من المعتاد بكثير. يا إما أنت ملاصق لمصدر الإرسال، يا إما فيه جهاز تشويش قريب. ${k.cond}`;}
+    else {cls="ok";head=(p<-100?"لا، مو تشويش.":"لا، مو تشويش.");why=`قراءة ${dbm(p)} ${strength(p)}، و${k.src}. ${k.cond}`;}
+  }
+  return {cls, head, usual:`${name}. ${k.usual}`, why, band, kind};
+}
+
+function render(f, p){
+  const out = document.getElementById("out");
+  const r = judge(f,p);
+  const fTxt = f.range ? `${fmt(f.lo)}–${fmt(f.hi)} MHz` : `${fmt(f.mid)} MHz`;
+  let scale = "";
+  if(r.band){
+    const k = K[r.kind], MIN=-130, MAX=-20, pos = v => ((Math.min(MAX,Math.max(MIN,v))-MIN)/(MAX-MIN)*100);
+    const [a,b] = k.range;
+    scale = `<div class="scale" aria-label="مقياس القوة">
+      <div class="bar"><div class="norm" style="left:${pos(a)}%;width:${pos(b)-pos(a)}%"></div><div class="mark" style="left:${pos(p)}%"></div></div>
+      <div class="ticks"><span>-130</span><span>-100</span><span>-70</span><span>-40</span><span>-20</span></div>
+      <div class="legend"><i></i>المستوى الطبيعي لهذا النطاق، والخط الأسود قراءتك</div></div>`;
+  }
+  const bandTxt = r.band ? `<span class="band">${fmt(r.band[0])}–${fmt(Math.floor(r.band[1]*10)/10)} MHz</span>` : "";
+  const rangeNote = f.range && r.band && (f.hi>=r.band[1] || f.lo<r.band[0]) ? `<p class="legend">المدى اللي كتبته يمر على أكثر من نطاق، والحكم هنا على منتصفه.</p>` : "";
+  out.innerHTML = `
+    <div class="verdict v-${r.cls}">${r.head}</div>
+    <div class="sec"><h3>الإشارة المعتادة</h3><p>${r.usual}</p>${bandTxt}</div>
+    <div class="sec"><h3>التفسير</h3><p>${r.why}</p>${rangeNote}</div>
+    ${scale}
+    <p class="legend" style="direction:ltr;text-align:right">${fTxt} · ${p} dBm</p>`;
+  return r.cls;
+}
+
+let hist = [];
+try{ hist = JSON.parse(localStorage.getItem("jamHist")||"[]"); }catch(e){ hist = []; }
+if(!hist.length) hist = [{f:"1225",p:"-80",c:"jam"},{f:"1600",p:"-86",c:"jam"},{f:"1240",p:"-101",c:"maybe"},{f:"1805-1880",p:"-75",c:"ok"},{f:"957",p:"-87",c:"ok"}];
+function drawHist(){
+  const el = document.getElementById("hist");
+  el.innerHTML = hist.map((h,i)=>`<button type="button" class="chip" data-i="${i}"><span class="dot d-${h.c}"></span><b>${h.f}</b> · ${h.p}</button>`).join("");
+}
+document.getElementById("hist").addEventListener("click", e=>{
+  const b = e.target.closest(".chip"); if(!b) return;
+  const h = hist[+b.dataset.i];
+  document.getElementById("freq").value = h.f; document.getElementById("pwr").value = h.p;
+  run(false);
+});
+function run(save){
+  const fr = document.getElementById("freq").value, pr = document.getElementById("pwr").value;
+  const f = parseFreq(fr), p = parsePwr(pr);
+  const out = document.getElementById("out");
+  if(!f || p===null){ out.innerHTML = `<div class="verdict v-none">اكتب التردد والقوة بالأرقام، مثل 1225 و ‎-80.</div>`; return; }
+  const c = render(f,p);
+  if(save){
+    const fTxt = toEn(fr).trim();
+    hist = [{f:fTxt,p:String(p),c}, ...hist.filter(h=>!(h.f===fTxt && h.p===String(p)))].slice(0,10);
+    try{ localStorage.setItem("jamHist", JSON.stringify(hist)); }catch(e){}
+    drawHist();
+  }
+}
+document.getElementById("f").addEventListener("submit", e=>{ e.preventDefault(); run(true); });
+drawHist(); run(false);
+</script>
+</html>
