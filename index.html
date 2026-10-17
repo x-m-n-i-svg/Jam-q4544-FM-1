@@ -1,11 +1,14 @@
-<!doctype html><html lang="ar"><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow, noarchive"><meta name="googlebot" content="noindex, nofollow"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!doctype html><html lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex, nofollow, noarchive"><meta name="googlebot" content="noindex, nofollow"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="فاحص التشويش">
 <title>فاحص التشويش</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
 [hidden]{display:none!important}
-/* Layout: one narrow instrument column — input panel, verdict readout, power scale, recent readings */
+.gate{max-width:360px;margin:12vh auto 0}
+.gate form{grid-template-columns:1fr}
+.gerr{grid-column:1/-1;margin:0;color:var(--jam);font-size:.9rem}
+/* Layout: one narrow instrument column with three tabs — single check, timed sweep of jam-prone bands, band reference */
 :root{
   --bg:#eef1f4; --panel:#ffffff; --ink:#18212b; --muted:#5b6774; --line:#d5dbe2;
   --accent:#c47a12; --accent-ink:#ffffff;
@@ -27,18 +30,29 @@
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.65;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 32px}
 .wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.pane{display:flex;flex-direction:column;gap:16px}
 h1{font-size:1.45rem;margin:0;line-height:1.3;text-wrap:balance}
+h2{font-size:.95rem;margin:0 0 10px}
 .sub{color:var(--muted);margin:2px 0 0;font-size:.92rem}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-label{display:flex;flex-direction:column;gap:6px;font-size:.88rem;color:var(--muted);font-weight:500;min-width:0}
-input{font-family:var(--font-num);font-size:1.25rem;padding:10px 12px;border:1px solid var(--line);border-radius:8px;
-  background:var(--bg);color:var(--ink);direction:ltr;text-align:left;width:100%;box-sizing:border-box;min-width:0}
-input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
-.hint{grid-column:1/-1;font-size:.8rem;color:var(--muted);margin:-4px 0 0}
 button{font-family:var(--font-body);cursor:pointer}
-.go{grid-column:1/-1;background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:12px;font-size:1.05rem;font-weight:700}
-.go:focus-visible,.chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--track);padding:4px;border-radius:10px}
+.tab{border:0;background:transparent;color:var(--muted);padding:9px 4px;border-radius:7px;font-weight:500;font-size:.95rem}
+.tab[aria-selected="true"]{background:var(--panel);color:var(--ink);font-weight:700}
+
+form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:flex;flex-direction:column;gap:6px;font-size:.86rem;color:var(--muted);font-weight:500;min-width:0}
+input{font-family:var(--font-num);font-size:1.2rem;padding:10px 12px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--ink);direction:ltr;text-align:left;width:100%;box-sizing:border-box;min-width:0}
+select{font-family:var(--font-body);font-size:.98rem;padding:11px 10px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--ink);width:100%;min-width:0}
+.hint{grid-column:1/-1;font-size:.8rem;color:var(--muted);margin:-4px 0 0}
+.go{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:12px;font-size:1.05rem;font-weight:700}
+form .go{grid-column:1/-1}
+.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px 14px;font-size:.95rem;font-weight:500}
+
 .result{display:flex;flex-direction:column;gap:14px}
 .verdict{border-radius:10px;padding:12px 14px;font-size:1.25rem;font-weight:700;line-height:1.4}
 .v-jam{background:var(--jam-bg);color:var(--jam)} .v-maybe{background:var(--maybe-bg);color:var(--maybe)} .v-ok{background:var(--ok-bg);color:var(--ok)}
@@ -46,24 +60,66 @@ button{font-family:var(--font-body);cursor:pointer}
 .sec h3{margin:0 0 2px;font-size:.95rem}
 .sec p{margin:0}
 .band{font-family:var(--font-num);font-size:.82rem;color:var(--muted);direction:ltr;display:inline-block}
+.num{font-family:var(--font-num);direction:ltr;unicode-bidi:isolate;display:inline-block}
 .scale{display:flex;flex-direction:column;gap:4px}
 .bar{position:relative;height:14px;background:var(--track);border-radius:7px;direction:ltr;overflow:hidden}
 .norm{position:absolute;top:0;bottom:0;background:var(--normal)}
 .mark{position:absolute;top:-3px;width:4px;height:20px;background:var(--ink);border-radius:2px;transform:translateX(-2px)}
 .ticks{display:flex;justify-content:space-between;direction:ltr;font-family:var(--font-num);font-size:.72rem;color:var(--muted)}
-.legend{font-size:.78rem;color:var(--muted)}
+.legend{font-size:.8rem;color:var(--muted);margin:0}
 .legend i{display:inline-block;width:10px;height:10px;background:var(--normal);border-radius:2px;margin-inline-end:4px;vertical-align:-1px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:4px 12px;font-family:var(--font-num);font-size:.82rem;direction:ltr}
 .chip b{font-weight:500}
-.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-inline:0 6px;vertical-align:1px}
 .d-jam{background:var(--jam)} .d-maybe{background:var(--maybe)} .d-ok{background:var(--ok)} .d-none{background:var(--muted)}
 .foot{font-size:.78rem;color:var(--muted);margin:0}
-h2{font-size:.95rem;margin:0 0 10px}
-.gate{max-width:360px;margin:12vh auto 0}
-.gate form{grid-template-columns:1fr}
-.gerr{grid-column:1/-1;margin:0;color:var(--jam);font-size:.9rem}
-@media (max-width:380px){form{grid-template-columns:1fr}}
+
+/* sweep */
+.tbox{display:flex;flex-direction:column;gap:8px;align-items:center;text-align:center}
+.tlabel{font-size:.9rem;color:var(--muted);font-weight:500}
+.timer{font-family:var(--font-num);font-size:3.2rem;line-height:1.1;direction:ltr;font-variant-numeric:tabular-nums}
+.timer.ring{animation:flash .5s ease-in-out 6}
+@keyframes flash{50%{color:var(--maybe)}}
+@media (prefers-reduced-motion: reduce){.timer.ring{animation:none;color:var(--maybe)}}
+.tbtns{display:flex;gap:8px;width:100%}
+.tbtns .go,.tbtns .ghost{flex:1}
+.alert{background:var(--maybe-bg);color:var(--maybe);border-radius:10px;padding:12px 14px;font-weight:700;border:0;text-align:start;font-size:.98rem;width:100%}
+.sumline{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-weight:700;align-items:center}
+.sums{display:flex;gap:10px;flex-wrap:wrap;font-size:.84rem;font-weight:500}
+.grp{margin:16px 0 0;font-size:.95rem;display:flex;justify-content:space-between;align-items:baseline}
+.grp span{font-size:.8rem;color:var(--muted);font-weight:500}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:6px 12px;align-items:start;padding:12px 0;border-bottom:1px solid var(--line)}
+.bn{font-weight:700;font-size:.95rem;line-height:1.4}
+.th,.nt{font-size:.78rem;color:var(--muted);line-height:1.55}
+.us{font-size:.84rem;line-height:1.55;margin-top:2px}
+.lv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:6px 0 4px}
+.lv span{border-radius:6px;padding:3px 2px;font-size:.72rem;font-weight:500;text-align:center;display:flex;flex-direction:column;line-height:1.35}
+.lv b{font-size:.8rem;font-weight:500}
+.l-ok{background:var(--ok-bg);color:var(--ok)} .l-maybe{background:var(--maybe-bg);color:var(--maybe)} .l-jam{background:var(--jam-bg);color:var(--jam)}
+.rin{display:flex;flex-direction:column;gap:6px}
+.rin input{font-size:1.05rem;padding:8px 6px;text-align:center}
+.rin input.s-jam{border-color:var(--jam)} .rin input.s-maybe{border-color:var(--maybe)} .rin input.s-ok{border-color:var(--ok)}
+.pill{text-align:center;font-size:.76rem;font-weight:700;border-radius:999px;padding:1px 6px;min-height:1.5em}
+.p-jam{background:var(--jam-bg);color:var(--jam)} .p-maybe{background:var(--maybe-bg);color:var(--maybe)} .p-ok{background:var(--ok-bg);color:var(--ok)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.actions button{flex:1 1 140px}
+textarea{width:100%;box-sizing:border-box;min-height:140px;margin-top:10px;font-family:var(--font-body);font-size:.85rem;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px}
+.lg{padding:10px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.lg:last-child{border-bottom:0}
+.lg .t{font-weight:700;font-size:.92rem}
+.lg .f{font-size:.82rem;color:var(--muted)}
+
+/* reference */
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.84rem}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:start;vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:.78rem;white-space:nowrap}
+td.n{white-space:nowrap}
+.thr td.n:nth-child(4){color:var(--ok)} .thr td.n:nth-child(5){color:var(--maybe)} .thr td.n:nth-child(6){color:var(--jam)}
+.thr{min-width:560px}
+.sysrow td{border-bottom:0;padding-bottom:2px}
+@media (max-width:360px){form{grid-template-columns:1fr}}
 </style>
 
 <div class="gate" id="gate" dir="rtl">
@@ -84,37 +140,108 @@ h2{font-size:.95rem;margin:0 0 10px}
     <p class="sub">من 300 ميجاهرتز إلى 6 جيجاهرتز، حسب ترددات المملكة العربية السعودية</p>
   </header>
 
-  <section class="panel">
-    <form id="f" novalidate>
-      <label for="freq">التردد
-        <input id="freq" inputmode="decimal" autocomplete="off" placeholder="1225" value="1225">
-      </label>
-      <label for="pwr">القوة (dBm)
-        <input id="pwr" inputmode="decimal" autocomplete="off" placeholder="-80" value="-80">
-      </label>
-      <p class="hint">التردد بالميجا (1225) أو بالجيجا (1.25)، ويقبل مدى مثل 1800-1880. القوة تكتب بالسالب أو بدونه.</p>
-      <button class="go" type="submit">افحص</button>
-    </form>
-  </section>
+  <nav class="tabs" role="tablist" aria-label="الأقسام">
+    <button class="tab" role="tab" id="t-check" data-tab="check" aria-selected="true">فحص</button>
+    <button class="tab" role="tab" id="t-sweep" data-tab="sweep" aria-selected="false">جولة الفحص</button>
+    <button class="tab" role="tab" id="t-ref" data-tab="ref" aria-selected="false">الباندات</button>
+  </nav>
 
-  <section class="panel result" id="out" aria-live="polite"></section>
+  <!-- فحص -->
+  <div class="pane" id="p-check" role="tabpanel">
+    <section class="panel">
+      <form id="f" novalidate>
+        <label for="freq">التردد (ميجا أو جيجا)
+          <input id="freq" inputmode="decimal" autocomplete="off" placeholder="1225" value="1225">
+        </label>
+        <label for="freq2">إلى (اختياري)
+          <input id="freq2" inputmode="decimal" autocomplete="off" placeholder="—">
+        </label>
+        <label for="pwr">القوة (dBm)
+          <input id="pwr" inputmode="decimal" autocomplete="off" placeholder="80" value="-80">
+        </label>
+        <label for="shape">شكل الإشارة
+          <select id="shape">
+            <option value="">غير محدد</option>
+            <option value="wide">تغطي الباند كامل</option>
+            <option value="peak">قمة ضيقة</option>
+            <option value="pulse">نبضات متقطعة</option>
+          </select>
+        </label>
+        <p class="hint">اكتب ميجا (1225) أو جيجا (1.25). القوة بالسالب أو بدونه. لمدى مثل 1800–1880 اكتب البداية والنهاية.</p>
+        <button class="go" type="submit">افحص</button>
+      </form>
+    </section>
 
-  <section class="panel">
-    <h2>القراءات الأخيرة</h2>
-    <div class="chips" id="hist"></div>
-  </section>
+    <section class="panel result" id="out" aria-live="polite"></section>
 
-  <p class="foot">النتيجة تقديرية من قراءة واحدة. للتأكد من التشويش: قارن بتردد هادئ قريب، وراقب شكل الإشارة (ضوضاء عريضة مستمرة، قمة ضيقة، أو نبضات)، وتأكد إذا فيه انقطاع فعلي في GPS أو الشبكة.</p>
+    <section class="panel">
+      <h2>القراءات الأخيرة</h2>
+      <div class="chips" id="hist"></div>
+    </section>
+  </div>
+
+  <!-- جولة الفحص -->
+  <div class="pane" id="p-sweep" role="tabpanel" hidden>
+    <section class="panel tbox">
+      <div class="tlabel" id="roundLbl">الجولة 1</div>
+      <div class="timer" id="timer" dir="ltr">10:00</div>
+      <div class="tbtns">
+        <button class="go" id="tStart" type="button">ابدأ التايمر</button>
+        <button class="ghost" id="tStop" type="button" hidden>إيقاف التايمر</button>
+      </div>
+      <p class="legend">كل 10 دقايق يرن التنبيه، وتنحفظ الجولة، وتبدأ جولة جديدة. خل الشاشة شغالة عشان يوصلك التنبيه.</p>
+    </section>
+
+    <button class="alert" id="roundAlert" type="button" hidden></button>
+
+    <section class="panel">
+      <div class="sumline"><span id="prog">فحصت 0 من 16</span><span class="sums" id="sums"></span></div>
+      <p class="legend" style="margin-top:6px">16 باند معرّضة للتشويش. اضبط جهازك على مدى كل باند، واكتب أعلى مستوى ثابت يغطي الباند كامل، مو القمم اللي تظهر وتختفي.</p>
+      <div id="rows"></div>
+      <div class="actions">
+        <button class="ghost" id="copyRep" type="button">نسخ التقرير</button>
+        <button class="ghost" id="newRound" type="button">حفظ الجولة وبدء جديدة</button>
+      </div>
+      <p class="legend" id="copyMsg" style="margin-top:8px" hidden></p>
+      <textarea id="repFallback" readonly hidden aria-label="نص التقرير"></textarea>
+    </section>
+
+    <section class="panel">
+      <h2>سجل الجولات</h2>
+      <div id="log"></div>
+    </section>
+  </div>
+
+  <!-- الباندات -->
+  <div class="pane" id="p-ref" role="tabpanel" hidden>
+    <section class="panel">
+      <h2>حدود الاشتباه للباندات المعرّضة للتشويش (16)</h2>
+      <div class="tbl"><table class="thr"><thead><tr><th>الباند</th><th>المدى MHz</th><th>المعتاد</th><th>طبيعي</th><th>مشتبه</th><th>تشويش</th></tr></thead><tbody id="refThr"></tbody></table></div>
+      <p class="legend" style="margin-top:10px">القيم لمستوى ثابت يغطي الباند كامل، بجهاز محمول مثل tinySA بإعداد RBW تلقائي. في باندات الجوال، القراءة القوية قرب برج ممكن تكون طبيعية، والتأكيد يكون بانقطاع الشبكة أو امتداد الضوضاء خارج حدود الباند.</p>
+    </section>
+    <section class="panel">
+      <h2>باندات الملاحة بالأقمار الصناعية (GNSS)</h2>
+      <div class="tbl"><table><thead><tr><th>النظام</th><th>الإشارة</th><th>التردد المركزي</th><th>المدى MHz</th></tr></thead><tbody id="refNav"></tbody></table></div>
+      <p class="legend" style="margin-top:10px">إشارات الأقمار كلها تصل الأرض بحوالي ‎-125 إلى ‎-130 dBm، وهذا أقل من ضوضاء الجهاز، فما تظهر. أي إشارة واضحة في هذي المدايات مصدرها أرضي.</p>
+    </section>
+    <section class="panel">
+      <h2>باندات الدرونات</h2>
+      <div class="tbl"><table><thead><tr><th>الباند</th><th>المدى MHz</th><th>الاستخدام</th><th>ملاحظة</th></tr></thead><tbody id="refDrone"></tbody></table></div>
+    </section>
+  </div>
+
+  <p class="foot">النتيجة تقديرية. للتأكد من التشويش: قارن بتردد هادئ قريب، وراقب شكل الإشارة، وتأكد إذا فيه انقطاع فعلي في GPS أو الشبكة أو تحكم الدرون.</p>
 </div>
 
 <script>
+/* ---------- البيانات ---------- */
 const K = {
   gnss:{usual:"إشارة الأقمار الطبيعية تصل بحوالي ‎-125 إلى ‎-130 dBm، يعني ما تظهر على جهاز القياس. ولا يوجد في هذا النطاق أي إرسال أرضي مرخص.", range:[-130,-125]},
-  "cell-dl":{usual:"هذا الجزء اللي ترسل فيه الأبراج. القوة الطبيعية تقريباً من ‎-50 إلى ‎-110 dBm.", range:[-110,-50], src:"الأرجح أنها من برج جوال", cond:"يعتبر تشويش فقط إذا ظهرت ضوضاء عريضة تغطي النطاق كامل، وصار معها انقطاع في الشبكة."},
+  "cell-dl":{usual:"هذا الجزء اللي ترسل فيه الأبراج. القوة الطبيعية تقريباً من ‎-50 إلى ‎-110 dBm.", range:[-110,-50], src:"الأرجح أنها من برج جوال", cond:"يعتبر تشويش فقط إذا ظهرت ضوضاء عريضة تغطي النطاق كامل وتمتد خارج حدوده، أو صار انقطاع في الشبكة."},
   "cell-ul":{usual:"هذا الجزء اللي ترسل فيه الجوالات نفسها، والإشارة تظهر وتختفي حسب الاستخدام.", range:[-110,-50], src:"الأرجح أنها من جوال يتصل أو يستخدم الإنترنت", cond:"يعتبر تشويش فقط إذا ظهرت ضوضاء عريضة قوية ومستمرة تغطي النطاق كامل."},
   "cell-mix":{usual:"نطاق جوال حديث، فيه جزء ترسل فيه الأبراج وجزء ترسل فيه الجوالات. القوة الطبيعية تقريباً من ‎-50 إلى ‎-110 dBm.", range:[-110,-50], src:"الأرجح أنها من برج أو جوال", cond:"يعتبر تشويش فقط إذا ظهرت ضوضاء عريضة تغطي النطاق كامل، وصار معها انقطاع في الشبكة."},
   tdd:{usual:"البرج والجوال يرسلون على نفس التردد بالتناوب. القوة الطبيعية تقريباً من ‎-50 إلى ‎-110 dBm.", range:[-110,-50], src:"الأرجح أنها من برج جوال أو جوال قريب", cond:"يعتبر تشويش فقط إذا صار انقطاع أو ضعف في الشبكة رغم أن القراءة قوية."},
-  wifi:{usual:"قوة إشارة الواي فاي والأجهزة اللاسلكية الطبيعية تقريباً من ‎-30 إلى ‎-90 dBm.", range:[-90,-30], src:"الأرجح أنها من راوتر أو جهاز لاسلكي", cond:"يعتبر تشويش فقط إذا ظهرت ضوضاء قوية ومستمرة تغطي النطاق كامل، وصار معها انقطاع في الواي فاي أو تحكم الدرون."},
+  wifi:{usual:"قوة إشارة الواي فاي والأجهزة اللاسلكية الطبيعية تقريباً من ‎-30 إلى ‎-90 dBm، وتكون متقطعة.", range:[-90,-30], src:"الأرجح أنها من راوتر أو جهاز لاسلكي", cond:"يعتبر تشويش فقط إذا ظهرت ضوضاء قوية ومستمرة تغطي النطاق كامل، وصار معها انقطاع في الواي فاي أو تحكم الدرون."},
   radio:{usual:"إشارات المحطات تكون مستمرة، وإشارات الأجهزة المحمولة متقطعة. القوة الطبيعية تقريباً من ‎-50 إلى ‎-100 dBm.", range:[-100,-50], src:"الأرجح أنها من محطة أو أجهزة لاسلكي قريبة", cond:"يعتبر تشويش فقط إذا ظهرت ضوضاء عريضة غير معتادة تغطي النطاق كامل."},
   broadcast:{usual:"إشارات البث تكون قوية نسبياً ومستمرة. القوة الطبيعية تقريباً من ‎-40 إلى ‎-90 dBm.", range:[-90,-40], src:"الأرجح أنها من برج بث", cond:"يعتبر مشبوه فقط إذا ظهرت ضوضاء عريضة غير معتادة، أو إشارة مستمرة بدون محتوى بث."},
   radar:{usual:"إشارة الرادار تظهر كنبضات متقطعة، غالباً تتكرر كل بضع ثوانٍ مع دوران الهوائي.", range:[-100,-40], src:"إذا كانت نبضات متقطعة فهي رادار وطبيعية", cond:"إذا كانت قمة ثابتة ومستمرة عرضها حوالي 8 ميجاهرتز، فالأرجح مرسل فيديو لدرون أو كاميرا لاسلكية، وهذا استخدام غير مرخص."},
@@ -143,15 +270,15 @@ const B = [
  [915,925,"gap","فاصل حماية في نطاق 900"],
  [925,960,"cell-dl","نطاق 900، إرسال الأبراج (STC وموبايلي وزين)"],
  [960,1164,"aero","ملاحة الطيران: DME/TACAN والرادار الثانوي، ومنها 1030 و1090 (ADS-B)"],
- [1164,1215,"gnss","GNSS المنخفض: GPS L5 وGalileo E5 وBeiDou B2 وGLONASS L3","هذا النطاق يشترك مع نظام DME لملاحة الطائرات، وإشارته نبضات متقطعة. إذا كانت الإشارة نبضات، خصوصاً قرب مطار، فهي طبيعية."],
- [1215,1254,"gnss","GNSS: GPS L2 وGLONASS L2","هذا النطاق يشترك مع رادارات الطيران (نبضات متقطعة)، ومع مرسلات فيديو الدرونات 1.2 جيجا (قمة ثابتة عرضها حوالي 8 ميجا)."],
+ [1164,1215,"gnss","GNSS المنخفض: GPS L5 وGalileo E5 وBeiDou B2 وGLONASS G3","هذا النطاق يشترك مع نظام DME لملاحة الطائرات، وإشارته نبضات متقطعة. إذا كانت الإشارة نبضات، خصوصاً قرب مطار، فهي طبيعية."],
+ [1215,1254,"gnss","GNSS: GPS L2 وGLONASS G2","هذا النطاق يشترك مع رادارات الطيران (نبضات متقطعة)، ومع مرسلات فيديو الدرونات 1.2 جيجا (قمة ثابتة عرضها حوالي 8 ميجا)."],
  [1254,1258,"radar","رادارات الطيران والرادارات العسكرية"],
- [1258,1300,"gnss","GNSS: Galileo E6 وBeiDou B3","هذا النطاق يشترك مع رادارات الطيران (نبضات متقطعة)، ومع مرسلات فيديو الدرونات 1.2 جيجا (قمة ثابتة عرضها حوالي 8 ميجا)."],
+ [1258,1300,"gnss","GNSS: Galileo E6 وBeiDou B3 وQZSS L6","هذا النطاق يشترك مع رادارات الطيران (نبضات متقطعة)، ومع مرسلات فيديو الدرونات 1.2/1.3 جيجا (قمة ثابتة عرضها حوالي 8 ميجا)."],
  [1300,1400,"radar","رادارات الطيران والرادارات العسكرية"],
  [1400,1427,"passive","الفلك الراديوي (نطاق محمي)"],
  [1427,1518,"other","نطاق L للاتصالات والروابط الثابتة"],
  [1518,1559,"sat-dl","هواتف الأقمار الصناعية: إرسال القمر (الثريا وإنمارسات)"],
- [1559,1610,"gnss","GNSS العلوي: GPS L1 وGalileo E1 وBeiDou B1 وGLONASS L1"],
+ [1559,1610,"gnss","GNSS العلوي: GPS L1 وGalileo E1 وBeiDou B1 وGLONASS G1"],
  [1610,1626.5,"sat-dl","هواتف الأقمار الصناعية: إيريديوم وجلوبال ستار"],
  [1626.5,1660.5,"sat-ul","هواتف الأقمار الصناعية: إرسال الهاتف (الثريا وإنمارسات)"],
  [1660.5,1710,"other","أقمار الأرصاد الجوية"],
@@ -165,7 +292,7 @@ const B = [
  [2170,2300,"other","الأقمار الصناعية والروابط الثابتة"],
  [2300,2400,"tdd","نطاق 2300 لشبكات 4G و5G (STC)"],
  [2400,2483.5,"wifi","واي فاي 2.4 وبلوتوث وتحكم الدرونات"],
- [2483.5,2500,"sat-dl","هواتف الأقمار الصناعية: جلوبال ستار"],
+ [2483.5,2500,"sat-dl","جلوبال ستار، وإشارة NavIC S للملاحة الهندية"],
  [2500,2690,"tdd","نطاق 2500/2600 لشبكات 4G و5G (زين وموبايلي)"],
  [2690,3400,"radar","رادارات المطارات والأرصاد الجوية (S-band)"],
  [3400,3800,"tdd","نطاق 3500 لشبكات 5G (STC وموبايلي وزين)"],
@@ -180,24 +307,79 @@ const B = [
  [5925,6000.01,"wifi","واي فاي 6E"]
 ];
 
+const N = x => `<bdi class="num" dir="ltr">${x}</bdi>`;
+/* الباندات المعرّضة للتشويش: s = بداية الاشتباه، j = بداية التشويش (مستوى ثابت على الباند كامل) */
+const SWEEP = [
+ {id:"g1", u:`${N(-125)} إلى ${N(-130)}، ما يظهر على الجهاز`, grp:"nav", name:"GNSS العلوي: L1 / E1 / B1 / G1", lo:1559, hi:1610, s:-105, j:-90, note:"أكثر باند يستهدفه التشويش. فيه GPS L1 وGalileo E1 وBeiDou B1 وGLONASS G1."},
+ {id:"g2", u:`${N(-125)} إلى ${N(-130)}، ما يظهر على الجهاز`, grp:"nav", name:"GNSS: L2 / G2", lo:1215, hi:1254, s:-105, j:-90, note:"GPS L2 وGLONASS G2. يشترك مع الرادارات وفيديو الدرونات 1.2."},
+ {id:"g5", u:`${N(-125)} إلى ${N(-130)}، ما يظهر على الجهاز`, grp:"nav", name:"GNSS المنخفض: L5 / E5 / B2 / G3", lo:1164, hi:1215, s:-105, j:-90, note:"يشترك مع DME للطيران، وإشارته نبضات طبيعية."},
+ {id:"g6", u:`${N(-125)} إلى ${N(-130)}، ما يظهر على الجهاز`, grp:"nav", name:"GNSS: E6 / B3 / L6", lo:1258, hi:1300, s:-105, j:-90, note:"Galileo E6 وBeiDou B3 وQZSS L6. يشترك مع الرادارات."},
+ {id:"d433", u:`ضوضاء الجهاز، مع قمم تحكم متقطعة`, grp:"drone", name:"تحكم 433", lo:430, hi:440, s:-85, j:-65, note:"تحكم الدرونات بعيدة المدى (LRS)."},
+ {id:"d900", u:`ضوضاء الجهاز، مع قمم جوالات وتحكم متقطعة`, grp:"drone", name:"تحكم 868 / 915", lo:860, hi:930, s:-80, j:-60, note:"ELRS وCrossfire. يتداخل مع إرسال الجوالات في نطاق 900."},
+ {id:"d24", u:`قمم واي فاي متقطعة من ${N(-30)} إلى ${N(-90)}`, grp:"drone", name:"تحكم وفيديو 2.4", lo:2400, hi:2483.5, s:-75, j:-55, note:"أغلب الدرونات وDJI، ومعه الواي فاي والبلوتوث."},
+ {id:"d52", u:`قمم واي فاي متقطعة من ${N(-40)} إلى ${N(-90)}`, grp:"drone", name:"DJI على 5.1 / 5.2", lo:5150, hi:5250, s:-80, j:-60, note:"بعض درونات DJI الحديثة، ومعه الواي فاي 5 جيجا."},
+ {id:"d58", u:`قمم واي فاي متقطعة من ${N(-40)} إلى ${N(-90)}`, grp:"drone", name:"فيديو وتحكم 5.8", lo:5725, hi:5875, s:-80, j:-60, note:"فيديو FPV وDJI، ومعه الواي فاي 5.8."},
+ {id:"c800", u:`${N(-60)} إلى ${N(-110)} من الأبراج`, grp:"cell", name:"أبراج 700 / 800", lo:758, hi:821, s:-60, j:-40, note:"STC وموبايلي وزين."},
+ {id:"c900", u:`${N(-60)} إلى ${N(-110)} من الأبراج`, grp:"cell", name:"أبراج 900", lo:925, hi:960, s:-60, j:-40, note:"2G و4G، الشركات الثلاث."},
+ {id:"c1800", u:`${N(-60)} إلى ${N(-110)} من الأبراج`, grp:"cell", name:"أبراج 1800", lo:1805, hi:1880, s:-60, j:-40, note:"أهم نطاق 4G، الشركات الثلاث."},
+ {id:"c2100", u:`${N(-60)} إلى ${N(-110)} من الأبراج`, grp:"cell", name:"أبراج 2100", lo:2110, hi:2170, s:-60, j:-40, note:"3G و4G، الشركات الثلاث."},
+ {id:"c2300", u:`${N(-60)} إلى ${N(-110)} من الأبراج`, grp:"cell", name:"4G / 5G على 2300", lo:2300, hi:2400, s:-60, j:-40, note:"STC."},
+ {id:"c2600", u:`${N(-60)} إلى ${N(-110)} من الأبراج`, grp:"cell", name:"4G / 5G على 2600", lo:2500, hi:2690, s:-60, j:-40, note:"زين وموبايلي."},
+ {id:"c3500", u:`${N(-60)} إلى ${N(-110)} من الأبراج`, grp:"cell", name:"5G على 3500", lo:3400, hi:3800, s:-60, j:-40, note:"الشركات الثلاث."}
+];
+const GRP = {nav:"الملاحة", drone:"الدرونات", cell:"الجوال"};
+
+const NAV = [
+ ["GPS","L1","1575.42","1563–1587"],["","L2","1227.60","1215–1240"],["","L5","1176.45","1164–1189"],
+ ["GLONASS","G1","1602","1598–1606"],["","G2","1246","1242–1249"],["","G3","1202.025","1192–1212"],
+ ["Galileo","E1","1575.42","1559–1591"],["","E5a","1176.45","1164–1189"],["","E5b","1207.14","1197–1217"],["","E6","1278.75","1259–1299"],
+ ["BeiDou","B1I","1561.098","1559–1563"],["","B1C","1575.42","1559–1591"],["","B2a","1176.45","1164–1189"],["","B2b","1207.14","1197–1217"],["","B3I","1268.52","1258–1279"],
+ ["QZSS (اليابان)","L1 / L2 / L5","مثل GPS",""],["","L6","1278.75","1259–1299"],
+ ["NavIC (الهند)","L5","1176.45","1164–1189"],["","S","2492.028","2484–2500"],
+ ["SBAS (تصحيحات)","L1 / L5","1575.42 / 1176.45","للطيران"]
+];
+const DRONE = [
+ ["433","430–440","تحكم بعيد المدى (LRS)","نطاق أجهزة قصيرة المدى"],
+ ["868","863–870","تحكم ELRS وCrossfire (النظام الأوروبي)","نطاق أجهزة قصيرة المدى"],
+ ["915","902–928","تحكم ELRS وCrossfire (النظام الأمريكي)","يتداخل مع إرسال الجوالات 880–915"],
+ ["1.2 / 1.3","1080–1360","فيديو FPV تناظري بعيد المدى","يتداخل مع GNSS والرادارات، وغير مرخص"],
+ ["2.4","2400–2483.5","تحكم أغلب الدرونات، وروابط DJI","مشترك مع الواي فاي والبلوتوث"],
+ ["3.3","3170–3470","فيديو FPV (نادر)","يتداخل مع الرادارات و5G"],
+ ["5.1 / 5.2","5150–5250","روابط DJI الحديثة (حسب الدولة)","مشترك مع الواي فاي 5 جيجا"],
+ ["5.8","5645–5945","فيديو FPV، وروابط DJI","مشترك مع الواي فاي 5.8"],
+ ["4G / 5G","حسب الشبكة","درونات تتحكم عبر شبكة الجوال","تظهر مثل جوال عادي"]
+];
+const DR = [[430,440,"تحكم بعيد المدى على 433"],[863,870,"تحكم ELRS وCrossfire على 868"],[902,928,"تحكم ELRS وCrossfire على 915"],[1080,1360,"فيديو FPV على 1.2/1.3 جيجا"],[2400,2483.5,"التحكم وروابط DJI على 2.4"],[3170,3470,"فيديو FPV على 3.3 جيجا"],[5150,5250,"روابط DJI على 5.1/5.2"],[5645,5945,"فيديو FPV وروابط DJI على 5.8"]];
+
+/* ---------- أدوات ---------- */
+const $ = id => document.getElementById(id);
 const toEn = s => String(s).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[٫,]/g,".").replace(/[−–—]/g,"-");
 function parseFreq(raw){
-  let s = toEn(raw).toLowerCase().trim();
+  const s = toEn(raw).toLowerCase().trim();
   const ghz = /g/.test(s);
   const nums = (s.match(/\d+(\.\d+)?/g)||[]).map(Number);
   if(!nums.length) return null;
   const fix = n => (ghz || n < 10) ? n*1000 : n;
   const lo = fix(nums[0]), hi = nums[1]!=null ? fix(nums[1]) : lo;
-  return {lo:Math.min(lo,hi), hi:Math.max(lo,hi), mid:(lo+hi)/2, range:nums[1]!=null};
+  return {lo:Math.min(lo,hi), hi:Math.max(lo,hi), mid:(lo+hi)/2, range:nums[1]!=null && lo!==hi};
 }
 function parsePwr(raw){
   const m = toEn(raw).match(/\d+(\.\d+)?/);
-  if(!m) return null;
-  return -Math.abs(Number(m[0]));
+  return m ? -Math.abs(Number(m[0])) : null;
 }
 const findBand = f => B.find(b => f>=b[0] && f<b[1]);
+const sweepBand = f => ["cell","nav","drone"].map(g=>SWEEP.filter(b=>b.grp===g)).flat().find(b=>f>=b.lo && f<=b.hi);
 const fmt = n => Number.isInteger(n) ? String(n) : n.toFixed(n<100?3:2).replace(/0+$/,"").replace(/\.$/,"");
 const dbm = p => "‎" + p + " dBm";
+const rowV = (b,p) => p==null ? "none" : p>=b.j ? "jam" : p>=b.s ? "maybe" : "ok";
+const VL = {jam:"تشويش", maybe:"مشتبه", ok:"طبيعي", none:"—"};
+const pad = n => String(n).padStart(2,"0");
+const hhmm = t => { const d=new Date(t); return pad(d.getHours())+":"+pad(d.getMinutes()); };
+const nBands = n => n===1?"باند واحد": n===2?"باندين": (n>=3&&n<=10)? n+" باندات" : n+" باند";
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v); }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
 
 function strength(p){
   if(p>=-60) return "إشارة قوية";
@@ -205,11 +387,33 @@ function strength(p){
   if(p>=-100) return "إشارة ضعيفة إلى متوسطة";
   return "إشارة ضعيفة جداً وقريبة من مستوى الضوضاء الداخلية للجهاز";
 }
+function droneNote(f){ const d = DR.find(x=>f>=x[0] && f<=x[1]); return d ? ` وتستخدمه الدرونات أيضاً: ${d[2]}.` : ""; }
 
-function judge(f, p){
+/* ---------- الحكم ---------- */
+function judge(f, p, shape){
   const band = findBand(f.mid);
   if(!band) return {cls:"none", head:"التردد خارج نطاق البرنامج.", usual:"البرنامج يغطي من 300 ميجاهرتز إلى 6000 ميجاهرتز.", why:"اكتب تردد داخل هذا المدى.", band:null};
   const [lo,hi,kind,name,extra] = band, k = K[kind];
+  const sb = sweepBand(f.mid);
+  const usual = `${name}. ${k.usual}` + (kind!=="gnss" && kind!=="radar" ? droneNote(f.mid) : "");
+  const R = (cls,head,why) => ({cls,head,usual,why,band,kind});
+
+  if(shape==="pulse"){
+    if(["gnss","radar","aero"].includes(kind))
+      return R("ok","لا، غالباً مو تشويش.",`النبضات المتقطعة في هذا النطاق شكل رادار أو ملاحة طيران مثل DME، وهذا طبيعي. أجهزة التشويش ترسل بشكل مستمر.`);
+    return R("ok","لا، غالباً مو تشويش.",`الإشارة المتقطعة تجي من أجهزة ترسل وتوقف، مثل جوال أو راوتر أو جهاز تحكم. أجهزة التشويش ترسل بشكل مستمر.`);
+  }
+
+  if(shape==="wide" && sb){
+    const v = rowV(sb,p);
+    const head = {jam:"ايه، غالباً تشويش.", maybe:"ايه، محتمل يكون تشويش.", ok:"لا، غالباً مو تشويش."}[v];
+    let why = `قراءة ${dbm(p)} على الباند كامل. حدود باند «${sb.name}»: مشتبه من ${dbm(sb.s)}، وتشويش من ${dbm(sb.j)}.`;
+    if(sb.grp==="nav") why += v==="ok" ? " القراءة قريبة من ضوضاء الجهاز." : " الأقمار ما تعطي إشارة بهذي القوة، فالمصدر أرضي يغطي نطاق الملاحة.";
+    if(sb.grp==="cell") why += v==="ok" ? " وهذا شكل أبراج جوال طبيعية، لأن قنوات 4G و5G عريضة ومسطّحة." : " إذا أنت ملاصق لبرج فممكن تكون طبيعية. للتأكد افحص حدود الباند: إذا الضوضاء تمتد خارجها، أو فيه انقطاع في الشبكة، فهو تشويش.";
+    if(sb.grp==="drone") why += v==="ok" ? " وهذا مستوى طبيعي لأجهزة لاسلكية عادية." : " إشارات الواي فاي والتحكم تكون متقطعة وما تغطي الباند كامل بشكل ثابت، فالتغطية الكاملة المستمرة علامة تشويش على الدرونات.";
+    return R(v, head, why);
+  }
+
   let cls, head, why;
   const above = Math.round(p - (-128));
   if(kind==="gnss"){
@@ -219,6 +423,7 @@ function judge(f, p){
       why=`قراءة ${dbm(p)} أقوى من الطبيعي بحوالي ${above} ديسيبل، وهذا يدل على مصدر أرضي. إذا كانت ضوضاء عريضة ومستمرة، فالأرجح جهاز تشويش، أو نفس الجهاز من مسافة أبعد.`;}
     else {cls="ok";head="لا، غالباً مو تشويش.";
       why=`قراءة ${dbm(p)} قريبة من مستوى الضوضاء الداخلية لأغلب أجهزة القياس، فالأرجح أن الجهاز يقرأ ضوضاءه نفسها. يصير تشويش إذا ارتفعت القراءة بوضوح عن الترددات المجاورة.`;}
+    if(shape==="peak" && cls!=="ok") why += " القمة الضيقة الثابتة هنا ممكن تكون جهاز تشويش بموجة واحدة، أو مرسل فيديو لدرون.";
     if(extra && cls!=="ok") why += " " + extra;
   } else if(kind==="passive"){
     if(p>=-105){cls="maybe";head="ايه، محتمل يكون إرسال غير طبيعي.";why=`قراءة ${dbm(p)} في نطاق ممنوع فيه الإرسال، فأي إشارة واضحة هنا مصدرها غير مرخص أو تسرّب من جهاز قريب.`;}
@@ -228,14 +433,15 @@ function judge(f, p){
     else {cls="ok";head="لا، غالباً مو تشويش.";why=`قراءة ${dbm(p)} ضعيفة، وقريبة من مستوى الضوضاء أو إشارة القمر نفسه.`;}
   } else {
     if(p>-40){cls="maybe";head="محتمل. القراءة قوية جداً.";why=`قراءة ${dbm(p)} أقوى من المعتاد بكثير. يا إما أنت ملاصق لمصدر الإرسال، يا إما فيه جهاز تشويش قريب. ${k.cond}`;}
-    else {cls="ok";head=(p<-100?"لا، مو تشويش.":"لا، مو تشويش.");why=`قراءة ${dbm(p)} ${strength(p)}، و${k.src}. ${k.cond}`;}
+    else {cls="ok";head="لا، مو تشويش.";why=`قراءة ${dbm(p)} ${strength(p)}، و${k.src}. ${k.cond}`;}
+    if(sb && !shape) why += " إذا كانت الإشارة تغطي الباند كامل، اختر ذلك في «شكل الإشارة» لنتيجة أدق.";
   }
-  return {cls, head, usual:`${name}. ${k.usual}`, why, band, kind};
+  return R(cls, head, why);
 }
 
-function render(f, p){
-  const out = document.getElementById("out");
-  const r = judge(f,p);
+/* ---------- قسم الفحص ---------- */
+function render(f, p, shape){
+  const r = judge(f,p,shape);
   const fTxt = f.range ? `${fmt(f.lo)}–${fmt(f.hi)} MHz` : `${fmt(f.mid)} MHz`;
   let scale = "";
   if(r.band){
@@ -247,8 +453,8 @@ function render(f, p){
       <div class="legend"><i></i>المستوى الطبيعي لهذا النطاق، والخط الأسود قراءتك</div></div>`;
   }
   const bandTxt = r.band ? `<span class="band">${fmt(r.band[0])}–${fmt(Math.floor(r.band[1]*10)/10)} MHz</span>` : "";
-  const rangeNote = f.range && r.band && (f.hi>=r.band[1] || f.lo<r.band[0]) ? `<p class="legend">المدى اللي كتبته يمر على أكثر من نطاق، والحكم هنا على منتصفه.</p>` : "";
-  out.innerHTML = `
+  const rangeNote = f.range && r.band && (f.hi>r.band[1] || f.lo<r.band[0]) ? `<p class="legend" style="margin-top:6px">المدى اللي كتبته يمر على أكثر من نطاق، والحكم هنا على منتصفه.</p>` : "";
+  $("out").innerHTML = `
     <div class="verdict v-${r.cls}">${r.head}</div>
     <div class="sec"><h3>الإشارة المعتادة</h3><p>${r.usual}</p>${bandTxt}</div>
     <div class="sec"><h3>التفسير</h3><p>${r.why}</p>${rangeNote}</div>
@@ -257,35 +463,194 @@ function render(f, p){
   return r.cls;
 }
 
-let hist = [];
-try{ hist = JSON.parse(localStorage.getItem("jamHist")||"[]"); }catch(e){ hist = []; }
-if(!hist.length) hist = [{f:"1225",p:"-80",c:"jam"},{f:"1600",p:"-86",c:"jam"},{f:"1240",p:"-101",c:"maybe"},{f:"1805-1880",p:"-75",c:"ok"},{f:"957",p:"-87",c:"ok"}];
+let hist = store.get("jamHist", []);
+if(!Array.isArray(hist) || !hist.length) hist = [
+  {f:"1225",t:"",p:"-80",s:"",c:"jam"},{f:"1600",t:"",p:"-86",s:"",c:"jam"},
+  {f:"1805",t:"1880",p:"-75",s:"wide",c:"ok"},{f:"1240",t:"",p:"-101",s:"",c:"maybe"},{f:"957",t:"",p:"-87",s:"",c:"ok"}];
 function drawHist(){
-  const el = document.getElementById("hist");
-  el.innerHTML = hist.map((h,i)=>`<button type="button" class="chip" data-i="${i}"><span class="dot d-${h.c}"></span><b>${h.f}</b> · ${h.p}</button>`).join("");
+  $("hist").innerHTML = hist.map((h,i)=>`<button type="button" class="chip" data-i="${i}"><span class="dot d-${h.c}"></span><b>${h.f}${h.t?"–"+h.t:""}</b> · ${h.p}</button>`).join("");
 }
-document.getElementById("hist").addEventListener("click", e=>{
+$("hist").addEventListener("click", e=>{
   const b = e.target.closest(".chip"); if(!b) return;
   const h = hist[+b.dataset.i];
-  document.getElementById("freq").value = h.f; document.getElementById("pwr").value = h.p;
-  run(false);
+  $("freq").value = h.f; $("freq2").value = h.t||""; $("pwr").value = h.p; $("shape").value = h.s||"";
+  runCheck(false);
 });
-function run(save){
-  const fr = document.getElementById("freq").value, pr = document.getElementById("pwr").value;
-  const f = parseFreq(fr), p = parsePwr(pr);
-  const out = document.getElementById("out");
-  if(!f || p===null){ out.innerHTML = `<div class="verdict v-none">اكتب التردد والقوة بالأرقام، مثل 1225 و ‎-80.</div>`; return; }
-  const c = render(f,p);
+function runCheck(save){
+  const fr = toEn($("freq").value).trim(), fr2 = toEn($("freq2").value).trim();
+  const a = parseFreq(fr), b = fr2 ? parseFreq(fr2) : null, p = parsePwr($("pwr").value), shape = $("shape").value;
+  if(!a || p===null){ $("out").innerHTML = `<div class="verdict v-none">اكتب التردد والقوة بالأرقام، مثل 1225 و 80.</div>`; return; }
+  const f = b ? {lo:Math.min(a.lo,b.lo), hi:Math.max(a.hi,b.hi), mid:(Math.min(a.lo,b.lo)+Math.max(a.hi,b.hi))/2, range:true} : a;
+  const c = render(f,p,shape);
   if(save){
-    const fTxt = toEn(fr).trim();
-    hist = [{f:fTxt,p:String(p),c}, ...hist.filter(h=>!(h.f===fTxt && h.p===String(p)))].slice(0,10);
-    try{ localStorage.setItem("jamHist", JSON.stringify(hist)); }catch(e){}
-    drawHist();
+    const item = {f:fr, t:fr2, p:String(p), s:shape, c};
+    hist = [item, ...hist.filter(h=>!(h.f===item.f && (h.t||"")===item.t && h.p===item.p))].slice(0,10);
+    store.set("jamHist", hist); drawHist();
   }
 }
-document.getElementById("f").addEventListener("submit", e=>{ e.preventDefault(); run(true); });
-drawHist(); run(false);
+$("f").addEventListener("submit", e=>{ e.preventDefault(); runCheck(true); });
+
+/* ---------- جولة الفحص ---------- */
+let S = Object.assign({endAt:null, round:1, r:{}, log:[]}, store.get("jamSweep", {}));
+if(typeof S.r!=="object" || !S.r) S.r = {};
+if(!Array.isArray(S.log)) S.log = [];
+const saveS = () => store.set("jamSweep", S);
+
+function buildRows(){
+  let html = "";
+  for(const g of ["nav","drone","cell"]){
+    const list = SWEEP.filter(b=>b.grp===g);
+    html += `<h3 class="grp">${GRP[g]}<span>${nBands(list.length)}</span></h3>`;
+    for(const b of list){
+      html += `<div class="row">
+        <div><div class="bn">${b.name}</div>
+          <div class="band">${fmt(b.lo)}–${fmt(b.hi)} MHz</div>
+          <div class="us"><b>المعتاد:</b> ${b.u}</div>
+          <div class="lv"><span class="l-ok">طبيعي<b>${N("&lt; "+b.s)}</b></span><span class="l-maybe">مشتبه<b>${N(b.s+" → "+b.j)}</b></span><span class="l-jam">تشويش<b>${N("≥ "+b.j)}</b></span></div>
+          <div class="nt">${b.note}</div></div>
+        <div class="rin"><input id="sw-${b.id}" data-id="${b.id}" inputmode="decimal" autocomplete="off" placeholder="dBm" aria-label="قراءة ${b.name}"><span class="pill" id="pl-${b.id}"></span></div>
+      </div>`;
+    }
+  }
+  $("rows").innerHTML = html;
+  for(const b of SWEEP){ const v = S.r[b.id]; $("sw-"+b.id).value = v==null ? "" : v; paintRow(b); }
+}
+function paintRow(b){
+  const v = rowV(b, S.r[b.id]);
+  const inp = $("sw-"+b.id), pl = $("pl-"+b.id);
+  inp.className = v==="none" ? "" : "s-"+v;
+  pl.className = "pill" + (v==="none" ? "" : " p-"+v);
+  pl.textContent = v==="none" ? "" : VL[v];
+}
+function counts(){
+  const c = {jam:0,maybe:0,ok:0,none:0};
+  for(const b of SWEEP) c[rowV(b, S.r[b.id])]++;
+  return c;
+}
+function updateSummary(){
+  const c = counts();
+  $("prog").textContent = `فحصت ${SWEEP.length - c.none} من ${SWEEP.length}`;
+  $("sums").innerHTML = `<span><span class="dot d-jam"></span>تشويش ${c.jam}</span><span><span class="dot d-maybe"></span>مشتبه ${c.maybe}</span><span><span class="dot d-ok"></span>طبيعي ${c.ok}</span>`;
+  $("roundLbl").textContent = `الجولة ${S.round}`;
+}
+$("rows").addEventListener("input", e=>{
+  const id = e.target.dataset.id; if(!id) return;
+  const p = e.target.value.trim()==="" ? null : parsePwr(e.target.value);
+  if(p==null) delete S.r[id]; else S.r[id] = p;
+  saveS(); paintRow(SWEEP.find(b=>b.id===id)); updateSummary();
+  $("roundAlert").hidden = true;
+});
+
+function archive(){
+  const c = counts();
+  if(c.none===SWEEP.length) return false;
+  const flagged = SWEEP.filter(b=>["jam","maybe"].includes(rowV(b,S.r[b.id]))).map(b=>({n:b.name, p:S.r[b.id], v:rowV(b,S.r[b.id])}));
+  S.log.unshift({round:S.round, at:Date.now(), c, flagged});
+  S.log = S.log.slice(0,30);
+  return true;
+}
+function nextRound(){ S.round++; S.r = {}; saveS(); buildRows(); updateSummary(); drawLog(); }
+function drawLog(){
+  if(!S.log.length){ $("log").innerHTML = `<p class="legend">ما فيه جولات محفوظة للحين. كل جولة تنحفظ هنا تلقائياً لما يخلص التايمر، أو لما تضغط «حفظ الجولة وبدء جديدة».</p>`; return; }
+  $("log").innerHTML = S.log.map(l=>{
+    const fl = l.flagged.length ? l.flagged.map(x=>`<span><span class="dot d-${x.v}"></span>${x.n} <span class="num">${x.p}</span></span>`).join("<br>") : "ما فيه تشويش أو اشتباه";
+    return `<div class="lg"><div class="t">الجولة ${l.round} · <span class="num">${hhmm(l.at)}</span></div>
+      <div class="f">تشويش ${l.c.jam} · مشتبه ${l.c.maybe} · طبيعي ${l.c.ok} · ما انفحص ${l.c.none}</div>
+      <div class="f">${fl}</div></div>`;
+  }).join("");
+}
+
+function report(){
+  const d = new Date(), c = counts();
+  const lines = [`تقرير فحص التشويش`, `الجولة ${S.round} · ${hhmm(d)} · ${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, ""];
+  for(const v of ["jam","maybe"]){
+    for(const b of SWEEP) if(rowV(b,S.r[b.id])===v) lines.push(`${v==="jam"?"🔴 تشويش":"🟠 مشتبه"}: ${b.name} (${fmt(b.lo)}–${fmt(b.hi)}) ‎${S.r[b.id]} dBm`);
+  }
+  if(!c.jam && !c.maybe) lines.push("ما فيه تشويش أو اشتباه.");
+  lines.push("");
+  lines.push(`طبيعي: ${nBands(c.ok)}`);
+  if(c.none) lines.push(`ما انفحص: ${nBands(c.none)}`);
+  return lines.join("\n");
+}
+$("copyRep").addEventListener("click", ()=>{
+  const text = report(), msg = $("copyMsg"), ta = $("repFallback");
+  const fallback = () => { ta.value = text; ta.hidden = false; ta.focus(); ta.select(); msg.textContent = "ما قدرت أنسخ تلقائياً. النص محدد تحت، انسخه يدوياً."; msg.hidden = false; };
+  try{
+    navigator.clipboard.writeText(text).then(()=>{ ta.hidden = true; msg.textContent = "انتسخ التقرير. الصقه في الواتس."; msg.hidden = false; }, fallback);
+  }catch(e){ fallback(); }
+});
+$("newRound").addEventListener("click", ()=>{
+  if(!archive()){ $("copyMsg").textContent = "ما فيه قراءات في هذي الجولة للحفظ."; $("copyMsg").hidden = false; return; }
+  $("copyMsg").hidden = true; nextRound();
+});
+
+/* التايمر */
+const ROUND_MS = 10*60*1000;
+let wake = null, actx = null;
+function fmtT(ms){ const s = Math.max(0, Math.ceil(ms/1000)); return pad(Math.floor(s/60)) + ":" + pad(s%60); }
+async function keepAwake(){ try{ if(navigator.wakeLock && document.visibilityState==="visible") wake = await navigator.wakeLock.request("screen"); }catch(e){} }
+function releaseWake(){ try{ wake && wake.release(); }catch(e){} wake = null; }
+function beep(){
+  if(!actx) return;
+  try{
+    const t0 = actx.currentTime + 0.05;
+    for(let i=0;i<4;i++){
+      const o = actx.createOscillator(), g = actx.createGain(), t = t0 + i*0.45;
+      o.frequency.value = i%2 ? 660 : 880; o.connect(g); g.connect(actx.destination);
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.5,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.32);
+      o.start(t); o.stop(t+0.35);
+    }
+  }catch(e){}
+}
+function setTimerUI(){ const on = !!S.endAt; $("tStart").hidden = on; $("tStop").hidden = !on; }
+function roundDone(){
+  const done = S.round;
+  const saved = archive();
+  S.endAt = Date.now() + ROUND_MS;
+  nextRound();
+  beep();
+  const t = $("timer"); t.classList.remove("ring"); void t.offsetWidth; t.classList.add("ring");
+  $("roundAlert").textContent = `انتهت الجولة ${done}${saved?" وانحفظت في السجل":""}. بدأت الجولة ${S.round}، افحص الباندات من جديد.`;
+  $("roundAlert").hidden = false;
+  if($("p-sweep").hidden) showTab("sweep");
+}
+function tick(){
+  if(!S.endAt){ $("timer").textContent = "10:00"; return; }
+  const left = S.endAt - Date.now();
+  if(left <= 0){ roundDone(); return; }
+  $("timer").textContent = fmtT(left);
+}
+$("tStart").addEventListener("click", ()=>{
+  try{ actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if(actx.state==="suspended") actx.resume(); }catch(e){}
+  S.endAt = Date.now() + ROUND_MS; saveS(); keepAwake(); setTimerUI(); tick();
+});
+$("tStop").addEventListener("click", ()=>{ S.endAt = null; saveS(); releaseWake(); setTimerUI(); tick(); });
+$("roundAlert").addEventListener("click", ()=>{ $("roundAlert").hidden = true; });
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible"){ if(S.endAt) keepAwake(); tick(); } });
+setInterval(tick, 500);
+
+/* ---------- الأقسام ---------- */
+function showTab(t){
+  for(const x of ["check","sweep","ref"]){
+    $("p-"+x).hidden = x!==t;
+    $("t-"+x).setAttribute("aria-selected", x===t ? "true" : "false");
+  }
+  store.set("jamTab", t);
+}
+document.querySelector(".tabs").addEventListener("click", e=>{ const b = e.target.closest(".tab"); if(b) showTab(b.dataset.tab); });
+
+/* ---------- المرجع ---------- */
+$("refThr").innerHTML = ["nav","drone","cell"].map(g=>SWEEP.filter(b=>b.grp===g).map(b=>
+  `<tr><td>${b.name}</td><td class="n"><span class="num">${fmt(b.lo)}–${fmt(b.hi)}</span></td><td>${b.u}</td><td class="n">${N("&lt; "+b.s)}</td><td class="n">${N(b.s+" → "+b.j)}</td><td class="n">${N("≥ "+b.j)}</td></tr>`).join("")).join("");
+$("refNav").innerHTML = NAV.map(r=>`<tr${r[0]?' class="sys"':''}><td><b>${r[0]}</b></td><td class="n"><span class="num">${r[1]}</span></td><td class="n"><span class="num">${r[2]}</span></td><td class="n"><span class="num">${r[3]}</span></td></tr>`).join("");
+$("refDrone").innerHTML = DRONE.map(r=>`<tr><td class="n"><b class="num">${r[0]}</b></td><td class="n"><span class="num">${r[1]}</span></td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join("");
+
+/* ---------- تشغيل ---------- */
+drawHist(); runCheck(false);
+showTab(store.get("jamTab","check"));
+buildRows(); updateSummary(); drawLog(); setTimerUI(); tick();
 </script>
+
 <script>
 (function(){
 const HASH="620d4066df8fec123d53e82943ee2eeccc65f44e02768d7bc79bcfe6088724c7", SALT="jamcheck:";
