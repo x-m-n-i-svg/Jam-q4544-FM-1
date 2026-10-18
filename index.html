@@ -48,6 +48,10 @@ input{font-family:var(--font-num);font-size:1.2rem;padding:10px 12px;border:1px 
   background:var(--bg);color:var(--ink);direction:ltr;text-align:left;width:100%;box-sizing:border-box;min-width:0}
 select{font-family:var(--font-body);font-size:.98rem;padding:11px 10px;border:1px solid var(--line);border-radius:8px;
   background:var(--bg);color:var(--ink);width:100%;min-width:0}
+.full{grid-column:1/-1}
+.nfm{position:absolute;top:-3px;height:20px;width:0;border-left:2px dashed var(--muted);transform:translateX(-1px)}
+.nfbox{display:grid;gap:6px;margin-top:12px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px}
+.nfbox input{background:var(--panel)}
 .hint{grid-column:1/-1;font-size:.8rem;color:var(--muted);margin:-4px 0 0}
 .go{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:12px;font-size:1.05rem;font-weight:700}
 form .go{grid-column:1/-1}
@@ -151,7 +155,7 @@ td.n{white-space:nowrap}
     <section class="panel">
       <form id="f" novalidate>
         <label for="freq">التردد (ميجا أو جيجا)
-          <input id="freq" inputmode="decimal" autocomplete="off" placeholder="1225" value="1225">
+          <input id="freq" inputmode="decimal" autocomplete="off" placeholder="1575" value="1575">
         </label>
         <label for="freq2">إلى (اختياري)
           <input id="freq2" inputmode="decimal" autocomplete="off" placeholder="—">
@@ -159,7 +163,10 @@ td.n{white-space:nowrap}
         <label for="pwr">القوة (dBm)
           <input id="pwr" inputmode="decimal" autocomplete="off" placeholder="80" value="-80">
         </label>
-        <label for="shape">شكل الإشارة
+        <label for="nf">Noise floor (اختياري)
+          <input id="nf" inputmode="decimal" autocomplete="off" placeholder="—" value="-85">
+        </label>
+        <label for="shape" class="full">شكل الإشارة
           <select id="shape">
             <option value="">غير محدد</option>
             <option value="wide">تغطي الباند كامل</option>
@@ -167,7 +174,7 @@ td.n{white-space:nowrap}
             <option value="pulse">نبضات متقطعة</option>
           </select>
         </label>
-        <p class="hint">اكتب ميجا (1225) أو جيجا (1.25). القوة بالسالب أو بدونه. لمدى مثل 1800–1880 اكتب البداية والنهاية.</p>
+        <p class="hint">اكتب ميجا (1225) أو جيجا (1.25). القوة بالسالب أو بدونه. لمدى مثل 1800–1880 اكتب البداية والنهاية. الـ noise floor اختياري، ويعطي نتيجة أدق خصوصاً في باندات الملاحة.</p>
         <button class="go" type="submit">افحص</button>
       </form>
     </section>
@@ -197,6 +204,12 @@ td.n{white-space:nowrap}
     <section class="panel">
       <div class="sumline"><span id="prog">فحصت 0 من 16</span><span class="sums" id="sums"></span></div>
       <p class="legend" style="margin-top:6px">16 باند معرّضة للتشويش. اضبط جهازك على مدى كل باند، واكتب أعلى مستوى ثابت يغطي الباند كامل، مو القمم اللي تظهر وتختفي.</p>
+      <div class="nfbox">
+        <label for="swnf">Noise floor (اختياري)
+          <input id="swnf" inputmode="decimal" autocomplete="off" placeholder="—">
+        </label>
+        <p class="legend">إذا كتبته، تتحسب حدود باندات الملاحة منه: مشتبه إذا القراءة أعلى منه بـ 3 ديسيبل، وتشويش من 10. قِسه على تردد هادي قريب بنفس إعدادات الجهاز.</p>
+      </div>
       <div id="rows"></div>
       <div class="actions">
         <button class="ghost" id="copyRep" type="button">نسخ التقرير</button>
@@ -217,7 +230,7 @@ td.n{white-space:nowrap}
     <section class="panel">
       <h2>حدود الاشتباه للباندات المعرّضة للتشويش (16)</h2>
       <div class="tbl"><table class="thr"><thead><tr><th>الباند</th><th>المدى MHz</th><th>المعتاد</th><th>طبيعي</th><th>مشتبه</th><th>تشويش</th></tr></thead><tbody id="refThr"></tbody></table></div>
-      <p class="legend" style="margin-top:10px">القيم لمستوى ثابت يغطي الباند كامل، بجهاز محمول مثل tinySA بإعداد RBW تلقائي. في باندات الجوال، القراءة القوية قرب برج ممكن تكون طبيعية، والتأكيد يكون بانقطاع الشبكة أو امتداد الضوضاء خارج حدود الباند.</p>
+      <p class="legend" style="margin-top:10px">القيم لمستوى ثابت يغطي الباند كامل، بجهاز محمول مثل tinySA بإعداد RBW تلقائي. في باندات الجوال، القراءة القوية قرب برج ممكن تكون طبيعية، والتأكيد يكون بانقطاع الشبكة أو امتداد الضوضاء خارج حدود الباند. وإذا كتبت noise floor، تتحسب حدود باندات الملاحة منه: مشتبه من +3 ديسيبل، وتشويش من +10.</p>
     </section>
     <section class="panel">
       <h2>باندات الملاحة بالأقمار الصناعية (GNSS)</h2>
@@ -371,7 +384,8 @@ const findBand = f => B.find(b => f>=b[0] && f<b[1]);
 const sweepBand = f => ["cell","nav","drone"].map(g=>SWEEP.filter(b=>b.grp===g)).flat().find(b=>f>=b.lo && f<=b.hi);
 const fmt = n => Number.isInteger(n) ? String(n) : n.toFixed(n<100?3:2).replace(/0+$/,"").replace(/\.$/,"");
 const dbm = p => "‎" + p + " dBm";
-const rowV = (b,p) => p==null ? "none" : p>=b.j ? "jam" : p>=b.s ? "maybe" : "ok";
+const thr = (b,nf) => (b.grp==="nav" && nf!=null) ? {s:nf+3, j:nf+10} : {s:b.s, j:b.j};
+const rowV = (b,p,nf) => { if(p==null) return "none"; const t = thr(b,nf); return p>=t.j ? "jam" : p>=t.s ? "maybe" : "ok"; };
 const VL = {jam:"تشويش", maybe:"مشتبه", ok:"طبيعي", none:"—"};
 const pad = n => String(n).padStart(2,"0");
 const hhmm = t => { const d=new Date(t); return pad(d.getHours())+":"+pad(d.getMinutes()); };
@@ -390,19 +404,36 @@ function strength(p){
 function droneNote(f){ const d = DR.find(x=>f>=x[0] && f<=x[1]); return d ? ` وتستخدمه الدرونات أيضاً: ${d[2]}.` : ""; }
 
 /* ---------- الحكم ---------- */
-function judge(f, p, shape){
+function judge(f, p, shape, nf){
   const band = findBand(f.mid);
   if(!band) return {cls:"none", head:"التردد خارج نطاق البرنامج.", usual:"البرنامج يغطي من 300 ميجاهرتز إلى 6000 ميجاهرتز.", why:"اكتب تردد داخل هذا المدى.", band:null};
   const [lo,hi,kind,name,extra] = band, k = K[kind];
   const sb = sweepBand(f.mid);
   const usual = `${name}. ${k.usual}` + (kind!=="gnss" && kind!=="radar" ? droneNote(f.mid) : "");
-  const R = (cls,head,why) => ({cls,head,usual,why,band,kind});
+  let pre = "";
+  const R = (cls,head,why) => ({cls,head,usual,why:pre+why,band,kind});
+  const hasNF = nf!=null && !isNaN(nf);
+  const d = hasNF ? Math.round((p-nf)*10)/10 : null;
+  const dTxt = hasNF ? `القراءة ${dbm(p)} أعلى من مستوى الضوضاء ${dbm(nf)} بـ ${d} ديسيبل. ` : "";
+  if(hasNF && p < nf) return R("none","تأكد من القراءة.","القوة أقل من مستوى الضوضاء، وهذا ما يصير. تأكد إن القوة والـ noise floor مقاسة بنفس الإعدادات (RBW والـ Attenuation).");
 
   if(shape==="pulse"){
     if(["gnss","radar","aero"].includes(kind))
       return R("ok","لا، غالباً مو تشويش.",`النبضات المتقطعة في هذا النطاق شكل رادار أو ملاحة طيران مثل DME، وهذا طبيعي. أجهزة التشويش ترسل بشكل مستمر.`);
     return R("ok","لا، غالباً مو تشويش.",`الإشارة المتقطعة تجي من أجهزة ترسل وتوقف، مثل جوال أو راوتر أو جهاز تحكم. أجهزة التشويش ترسل بشكل مستمر.`);
   }
+
+  const quiet = ["gnss","passive","sat-dl"].includes(kind);
+  if(hasNF && quiet){
+    const ref = (f.mid>=1559 && f.mid<1610) ? "مثل 1500 أو 1650" : "خارج النطاق";
+    const cmp = ` قارن الـ noise floor هنا بتردد هادي قريب ${ref}: إذا كانت الضوضاء هناك أقل بـ 5 ديسيبل أو أكثر، فالنطاق كله مرفوع، وهذا علامة تشويش عريض.`;
+    const why0 = kind==="passive" ? "هذا النطاق ممنوع فيه الإرسال، فأي إشارة فوق الضوضاء مصدرها غير مرخص." : "إشارات الأقمار تكون تحت مستوى الضوضاء، فأي إشارة فوقها مصدرها أرضي.";
+    if(d>=10) return R("jam","ايه، غالباً تشويش.", dTxt + why0 + " وارتفاع 10 ديسيبل أو أكثر يعني مصدر قريب يغطي على الأقمار." + (kind==="gnss" && extra ? " "+extra : ""));
+    if(d>=3) return R("maybe","ايه، محتمل يكون تشويش خفيف.", dTxt + why0 + " والارتفاع البسيط يعني مصدر بعيد أو ضعيف." + cmp);
+    return R("ok","لا، غالباً مو تشويش.", `القراءة ${dbm(p)} بنفس مستوى الضوضاء ${dbm(nf)} تقريباً، يعني ما فيه إشارة فوق الضوضاء.` + cmp);
+  }
+  if(hasNF && d<3) return R("ok","لا، مو تشويش.", `القراءة ${dbm(p)} بنفس مستوى الضوضاء ${dbm(nf)} تقريباً، يعني الجهاز يقرأ ضوضاءه وما فيه إشارة فعلية.`);
+  pre = dTxt;
 
   if(shape==="wide" && sb){
     const v = rowV(sb,p);
@@ -440,17 +471,17 @@ function judge(f, p, shape){
 }
 
 /* ---------- قسم الفحص ---------- */
-function render(f, p, shape){
-  const r = judge(f,p,shape);
+function render(f, p, shape, nf){
+  const r = judge(f,p,shape,nf);
   const fTxt = f.range ? `${fmt(f.lo)}–${fmt(f.hi)} MHz` : `${fmt(f.mid)} MHz`;
   let scale = "";
   if(r.band){
     const k = K[r.kind], MIN=-130, MAX=-20, pos = v => ((Math.min(MAX,Math.max(MIN,v))-MIN)/(MAX-MIN)*100);
     const [a,b] = k.range;
     scale = `<div class="scale" aria-label="مقياس القوة">
-      <div class="bar"><div class="norm" style="left:${pos(a)}%;width:${pos(b)-pos(a)}%"></div><div class="mark" style="left:${pos(p)}%"></div></div>
+      <div class="bar"><div class="norm" style="left:${pos(a)}%;width:${pos(b)-pos(a)}%"></div>${nf!=null?`<div class="nfm" style="left:${pos(nf)}%"></div>`:""}<div class="mark" style="left:${pos(p)}%"></div></div>
       <div class="ticks"><span>-130</span><span>-100</span><span>-70</span><span>-40</span><span>-20</span></div>
-      <div class="legend"><i></i>المستوى الطبيعي لهذا النطاق، والخط الأسود قراءتك</div></div>`;
+      <div class="legend"><i></i>المستوى الطبيعي لهذا النطاق، والخط الأسود قراءتك${nf!=null?"، والخط المنقّط مستوى الضوضاء":""}</div></div>`;
   }
   const bandTxt = r.band ? `<span class="band">${fmt(r.band[0])}–${fmt(Math.floor(r.band[1]*10)/10)} MHz</span>` : "";
   const rangeNote = f.range && r.band && (f.hi>r.band[1] || f.lo<r.band[0]) ? `<p class="legend" style="margin-top:6px">المدى اللي كتبته يمر على أكثر من نطاق، والحكم هنا على منتصفه.</p>` : "";
@@ -459,7 +490,7 @@ function render(f, p, shape){
     <div class="sec"><h3>الإشارة المعتادة</h3><p>${r.usual}</p>${bandTxt}</div>
     <div class="sec"><h3>التفسير</h3><p>${r.why}</p>${rangeNote}</div>
     ${scale}
-    <p class="legend" style="direction:ltr;text-align:right">${fTxt} · ${p} dBm</p>`;
+    <p class="legend" style="direction:ltr;text-align:right">${fTxt} · ${p} dBm${nf!=null?" · NF "+nf+" dBm":""}</p>`;
   return r.cls;
 }
 
@@ -468,33 +499,35 @@ if(!Array.isArray(hist) || !hist.length) hist = [
   {f:"1225",t:"",p:"-80",s:"",c:"jam"},{f:"1600",t:"",p:"-86",s:"",c:"jam"},
   {f:"1805",t:"1880",p:"-75",s:"wide",c:"ok"},{f:"1240",t:"",p:"-101",s:"",c:"maybe"},{f:"957",t:"",p:"-87",s:"",c:"ok"}];
 function drawHist(){
-  $("hist").innerHTML = hist.map((h,i)=>`<button type="button" class="chip" data-i="${i}"><span class="dot d-${h.c}"></span><b>${h.f}${h.t?"–"+h.t:""}</b> · ${h.p}</button>`).join("");
+  $("hist").innerHTML = hist.map((h,i)=>`<button type="button" class="chip" data-i="${i}"><span class="dot d-${h.c}"></span><b>${h.f}${h.t?"–"+h.t:""}</b> · ${h.p}${h.n?" / NF "+h.n:""}</button>`).join("");
 }
 $("hist").addEventListener("click", e=>{
   const b = e.target.closest(".chip"); if(!b) return;
   const h = hist[+b.dataset.i];
-  $("freq").value = h.f; $("freq2").value = h.t||""; $("pwr").value = h.p; $("shape").value = h.s||"";
+  $("freq").value = h.f; $("freq2").value = h.t||""; $("pwr").value = h.p; $("shape").value = h.s||""; $("nf").value = h.n||"";
   runCheck(false);
 });
 function runCheck(save){
   const fr = toEn($("freq").value).trim(), fr2 = toEn($("freq2").value).trim();
   const a = parseFreq(fr), b = fr2 ? parseFreq(fr2) : null, p = parsePwr($("pwr").value), shape = $("shape").value;
+  const nfRaw = $("nf").value.trim(), nf = nfRaw ? parsePwr(nfRaw) : null;
   if(!a || p===null){ $("out").innerHTML = `<div class="verdict v-none">اكتب التردد والقوة بالأرقام، مثل 1225 و 80.</div>`; return; }
   const f = b ? {lo:Math.min(a.lo,b.lo), hi:Math.max(a.hi,b.hi), mid:(Math.min(a.lo,b.lo)+Math.max(a.hi,b.hi))/2, range:true} : a;
-  const c = render(f,p,shape);
+  const c = render(f,p,shape,nf);
   if(save){
-    const item = {f:fr, t:fr2, p:String(p), s:shape, c};
-    hist = [item, ...hist.filter(h=>!(h.f===item.f && (h.t||"")===item.t && h.p===item.p))].slice(0,10);
+    const item = {f:fr, t:fr2, p:String(p), s:shape, n:nf==null?"":String(nf), c};
+    hist = [item, ...hist.filter(h=>!(h.f===item.f && (h.t||"")===item.t && h.p===item.p && (h.n||"")===item.n))].slice(0,10);
     store.set("jamHist", hist); drawHist();
   }
 }
 $("f").addEventListener("submit", e=>{ e.preventDefault(); runCheck(true); });
 
 /* ---------- جولة الفحص ---------- */
-let S = Object.assign({endAt:null, round:1, r:{}, log:[]}, store.get("jamSweep", {}));
+let S = Object.assign({endAt:null, round:1, r:{}, log:[], nf:null}, store.get("jamSweep", {}));
 if(typeof S.r!=="object" || !S.r) S.r = {};
 if(!Array.isArray(S.log)) S.log = [];
 const saveS = () => store.set("jamSweep", S);
+const rv = b => rowV(b, S.r[b.id], S.nf);
 
 function buildRows(){
   let html = "";
@@ -502,11 +535,12 @@ function buildRows(){
     const list = SWEEP.filter(b=>b.grp===g);
     html += `<h3 class="grp">${GRP[g]}<span>${nBands(list.length)}</span></h3>`;
     for(const b of list){
+      const t = thr(b,S.nf);
       html += `<div class="row">
         <div><div class="bn">${b.name}</div>
           <div class="band">${fmt(b.lo)}–${fmt(b.hi)} MHz</div>
           <div class="us"><b>المعتاد:</b> ${b.u}</div>
-          <div class="lv"><span class="l-ok">طبيعي<b>${N("&lt; "+b.s)}</b></span><span class="l-maybe">مشتبه<b>${N(b.s+" → "+b.j)}</b></span><span class="l-jam">تشويش<b>${N("≥ "+b.j)}</b></span></div>
+          <div class="lv"><span class="l-ok">طبيعي<b>${N("&lt; "+t.s)}</b></span><span class="l-maybe">مشتبه<b>${N(t.s+" → "+t.j)}</b></span><span class="l-jam">تشويش<b>${N("≥ "+t.j)}</b></span></div>${b.grp==="nav" && S.nf!=null ? `<div class="th">الحدود محسوبة من noise floor ${N(S.nf)}</div>` : ""}
           <div class="nt">${b.note}</div></div>
         <div class="rin"><input id="sw-${b.id}" data-id="${b.id}" inputmode="decimal" autocomplete="off" placeholder="dBm" aria-label="قراءة ${b.name}"><span class="pill" id="pl-${b.id}"></span></div>
       </div>`;
@@ -516,7 +550,7 @@ function buildRows(){
   for(const b of SWEEP){ const v = S.r[b.id]; $("sw-"+b.id).value = v==null ? "" : v; paintRow(b); }
 }
 function paintRow(b){
-  const v = rowV(b, S.r[b.id]);
+  const v = rv(b);
   const inp = $("sw-"+b.id), pl = $("pl-"+b.id);
   inp.className = v==="none" ? "" : "s-"+v;
   pl.className = "pill" + (v==="none" ? "" : " p-"+v);
@@ -524,7 +558,7 @@ function paintRow(b){
 }
 function counts(){
   const c = {jam:0,maybe:0,ok:0,none:0};
-  for(const b of SWEEP) c[rowV(b, S.r[b.id])]++;
+  for(const b of SWEEP) c[rv(b)]++;
   return c;
 }
 function updateSummary(){
@@ -533,6 +567,11 @@ function updateSummary(){
   $("sums").innerHTML = `<span><span class="dot d-jam"></span>تشويش ${c.jam}</span><span><span class="dot d-maybe"></span>مشتبه ${c.maybe}</span><span><span class="dot d-ok"></span>طبيعي ${c.ok}</span>`;
   $("roundLbl").textContent = `الجولة ${S.round}`;
 }
+$("swnf").addEventListener("input", e=>{
+  const v = e.target.value.trim();
+  S.nf = v==="" ? null : parsePwr(v);
+  saveS(); buildRows(); updateSummary();
+});
 $("rows").addEventListener("input", e=>{
   const id = e.target.dataset.id; if(!id) return;
   const p = e.target.value.trim()==="" ? null : parsePwr(e.target.value);
@@ -544,7 +583,7 @@ $("rows").addEventListener("input", e=>{
 function archive(){
   const c = counts();
   if(c.none===SWEEP.length) return false;
-  const flagged = SWEEP.filter(b=>["jam","maybe"].includes(rowV(b,S.r[b.id]))).map(b=>({n:b.name, p:S.r[b.id], v:rowV(b,S.r[b.id])}));
+  const flagged = SWEEP.filter(b=>["jam","maybe"].includes(rv(b))).map(b=>({n:b.name, p:S.r[b.id], v:rv(b)}));
   S.log.unshift({round:S.round, at:Date.now(), c, flagged});
   S.log = S.log.slice(0,30);
   return true;
@@ -562,9 +601,11 @@ function drawLog(){
 
 function report(){
   const d = new Date(), c = counts();
-  const lines = [`تقرير فحص التشويش`, `الجولة ${S.round} · ${hhmm(d)} · ${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`, ""];
+  const lines = [`تقرير فحص التشويش`, `الجولة ${S.round} · ${hhmm(d)} · ${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`];
+  if(S.nf!=null) lines.push(`Noise floor: ‎${S.nf} dBm`);
+  lines.push("");
   for(const v of ["jam","maybe"]){
-    for(const b of SWEEP) if(rowV(b,S.r[b.id])===v) lines.push(`${v==="jam"?"🔴 تشويش":"🟠 مشتبه"}: ${b.name} (${fmt(b.lo)}–${fmt(b.hi)}) ‎${S.r[b.id]} dBm`);
+    for(const b of SWEEP) if(rv(b)===v) lines.push(`${v==="jam"?"🔴 تشويش":"🟠 مشتبه"}: ${b.name} (${fmt(b.lo)}–${fmt(b.hi)}) ‎${S.r[b.id]} dBm`);
   }
   if(!c.jam && !c.maybe) lines.push("ما فيه تشويش أو اشتباه.");
   lines.push("");
@@ -648,6 +689,7 @@ $("refDrone").innerHTML = DRONE.map(r=>`<tr><td class="n"><b class="num">${r[0]}
 /* ---------- تشغيل ---------- */
 drawHist(); runCheck(false);
 showTab(store.get("jamTab","check"));
+$("swnf").value = S.nf==null ? "" : S.nf;
 buildRows(); updateSummary(); drawLog(); setTimerUI(); tick();
 </script>
 
